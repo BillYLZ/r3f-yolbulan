@@ -10,8 +10,9 @@ const UP = new THREE.Vector3(0, 1, 0)
 const axis = new THREE.Vector3()
 
 // A cube that tumbles through the cells in `queue` (a ref'd array of [x, y]), calling onStep on each arrival.
-export default function Runner({ queue, onStep, snap, speed = 3.5 }) {
-  const group = useRef()
+export default function Runner({ queue, onStep, snap, speed = 3.5, groupRef }) {
+  const localGroup = useRef()
+  const group = groupRef || localGroup
   const cube = useRef()
   const from = useRef(new THREE.Vector3())
 

@@ -22,7 +22,10 @@ React Three Fiber + shadcn/ui ile 3B yol bulma (A*) demosu: yarı saydam mavi k�
 - **Rastgele**: seçili yoğunlukta, her zaman çözülebilir rastgele engeller.
 - **Temizle**: tüm engelleri siler.
 - **Engel yoğunluğu / Hız**: rastgele haritanın doluluğu ve küpün hızı.
-- Kamera: sağ tık sürükle (masaüstü) veya iki parmak (telefon) ile döndür/yakınlaştır.
+- **Kamera görünümleri**: Perspektif · Üstten · İzometrik · Takip (kamera küpü izler). Seçili görünüme tekrar dokunmak o açıya sıfırlar.
+- **✋ (sağ üst)**: parmakla kamera kontrolü.
+  - Açık: 1 parmak / sol tık döndürür, 2 parmak yakınlaştırır ve kaydırır (pan), sağ tık kaydırır.
+  - Kapalı: dokunmak arenayı düzenler; 2 parmak yine yakınlaştırır ve kaydırır, sağ tık döndürür.
 
 ## Geliştirme
 

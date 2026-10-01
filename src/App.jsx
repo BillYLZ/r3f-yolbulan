@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
-import * as THREE from 'three'
-import { BrickWall, Eraser, Flag, MapPin, Play, Route, Shuffle } from 'lucide-react'
+import { Canvas } from '@react-three/fiber'
+import { Box, BrickWall, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
 import { astar, key, randomWalls } from './astar.js'
 import { SIZE, inBounds, toCell } from './grid.js'
 import Runner from './components/Runner.jsx'
+import CameraRig from './components/CameraRig.jsx'
 import { Fence, Floor, Marker, Obstacles, Trail } from './components/Arena.jsx'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -18,24 +17,6 @@ const START = [1, SIZE - 2]
 const GOAL = [SIZE - 2, 1]
 const START_COLOR = '#2fd27f'
 const GOAL_COLOR = '#e8434f'
-
-const PANEL = 352 // desktop side panel width incl. margin
-
-// Places the camera far enough back that the whole arena fits; on desktop, centers it beside the panel.
-function CameraRig() {
-  const { camera, size } = useThree()
-  useEffect(() => {
-    const side = size.width >= 768 ? PANEL : 0
-    if (side) camera.setViewOffset(size.width, size.height, -side / 2, 0, size.width, size.height)
-    else camera.clearViewOffset()
-    const v = THREE.MathUtils.degToRad(camera.fov) / 2
-    const h = Math.atan(Math.tan(v) * ((size.width - side) / size.height))
-    const dist = Math.max((SIZE * 0.55) / Math.tan(h), (SIZE * 0.55) / Math.tan(v))
-    camera.position.set(0, dist * 0.68, dist * 0.73)
-    camera.lookAt(0, 0, 0)
-  }, [camera, size])
-  return null
-}
 
 function Stat({ label, value }) {
   return (
@@ -58,6 +39,10 @@ export default function App() {
   const [path, setPath] = useState([])
   const [phase, setPhase] = useState('idle') // idle | search | walk | done | blocked
   const [stats, setStats] = useState(null)
+  const [view, setView] = useState('persp')
+  const [resetKey, setResetKey] = useState(0)
+  const [gestures, setGestures] = useState(false)
+  const runnerRef = useRef()
 
   const queue = useRef([])
   const timer = useRef(null)
@@ -78,7 +63,7 @@ export default function App() {
   }
 
   const pick = (e) => {
-    if (busy || e.nativeEvent.buttons !== 1) return
+    if (busy || gestures || e.nativeEvent.buttons !== 1) return
     const cell = toCell(e.point.x, e.point.z)
     if (!inBounds(cell)) return
     const k = key(...cell)
@@ -161,7 +146,7 @@ export default function App() {
         <Canvas shadows camera={{ fov: 45 }} onContextMenu={(e) => e.preventDefault()} style={{ touchAction: 'none' }}>
           <color attach="background" args={['#0b0b10']} />
           <fog attach="fog" args={['#0b0b10', 30, 90]} />
-          <CameraRig />
+          <CameraRig view={view} resetKey={resetKey} gestures={gestures} followRef={runnerRef} />
           <ambientLight intensity={0.55} />
           <directionalLight
             position={[6, 14, 8]}
@@ -179,18 +164,27 @@ export default function App() {
           <Obstacles walls={walls} />
           <Marker cell={start} color={START_COLOR} />
           <Marker cell={goal} color={GOAL_COLOR} pulse />
-          <Runner queue={queue} onStep={onStep} snap={snap} speed={speed} />
-          <OrbitControls
-            enablePan={false}
-            mouseButtons={{ RIGHT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY }}
-            touches={{ TWO: THREE.TOUCH.DOLLY_ROTATE }}
-            maxPolarAngle={Math.PI / 2.3}
-            minDistance={6}
-            maxDistance={70}
-          />
+          <Runner queue={queue} onStep={onStep} snap={snap} speed={speed} groupRef={runnerRef} />
         </Canvas>
         <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center md:top-4 md:left-88">
           <Badge variant={status.variant} className="px-3 py-1 text-sm">{status.text}</Badge>
+        </div>
+        <div className="absolute top-3 right-3 flex flex-col items-end gap-2 md:top-4 md:right-4">
+          <Button
+            size="icon"
+            variant={gestures ? 'default' : 'outline'}
+            onClick={() => setGestures((g) => !g)}
+            aria-pressed={gestures}
+            aria-label="Parmakla kamera kontrolü"
+            className="size-11 rounded-full backdrop-blur"
+          >
+            <Hand className="size-5" />
+          </Button>
+          {gestures && (
+            <span className="rounded-md bg-card px-2 py-1 text-right text-[11px] leading-tight text-muted-foreground backdrop-blur">
+              1 parmak: döndür<br />2 parmak: yakınlaştır · kaydır
+            </span>
+          )}
         </div>
       </div>
 
@@ -229,6 +223,34 @@ export default function App() {
             </Button>
           </div>
 
+          <div className="flex flex-col gap-2">
+            <span className="hidden text-xs font-medium text-muted-foreground md:block">Kamera</span>
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              value={view}
+              onValueChange={(v) => {
+                if (v) setView(v)
+                setResetKey((k) => k + 1)
+              }}
+              className="w-full"
+            >
+              <ToggleGroupItem value="persp" aria-label="Perspektif">
+                <Box /> <span className="hidden md:inline">Persp.</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="top" aria-label="Üstten">
+                <Grid3x3 /> <span className="hidden md:inline">Üstten</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="iso" aria-label="İzometrik">
+                <Rotate3d /> <span className="hidden md:inline">İzo</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="follow" aria-label="Takip">
+                <Crosshair /> <span className="hidden md:inline">Takip</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
           <Separator className="hidden md:block" />
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -249,7 +271,7 @@ export default function App() {
           </div>
 
           <p className="hidden text-xs text-muted-foreground md:block">
-            Sağ tık sürükle: döndür · Tekerlek: yakınlaştır · Boşluk: yolu bul
+            ✋ açıkken sol tık döndürür, sağ tık kaydırır. Kapalıyken sağ tık döndürür. Tekerlek: yakınlaştır · Boşluk: yolu bul
           </p>
         </CardContent>
       </Card>
