@@ -77,6 +77,36 @@ export function Obstacles({ walls }) {
   )
 }
 
+// Every tried step drawn as a thin bar between cell centers, so all attempted routes from Start grow like a tree.
+// Bars on the final path turn orange and thick.
+function Branches({ branches, path }) {
+  const onPath = new Set()
+  for (let i = 1; i < path.length; i++) onPath.add(`${path[i - 1]}|${path[i]}`).add(`${path[i]}|${path[i - 1]}`)
+  return branches.map(([a, b, isFresh]) => {
+    const [ax, az] = toWorld(a)
+    const [bx, bz] = toWorld(b)
+    const win = onPath.has(`${a}|${b}`)
+    const horizontal = az === bz
+    return (
+      <mesh key={`${a}|${b}`} position={[(ax + bx) / 2, win ? 0.017 : 0.014, (az + bz) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={horizontal ? [1, win ? 0.16 : 0.06] : [win ? 0.16 : 0.06, 1]} />
+        <meshBasicMaterial color={win ? ORANGE : '#38bdf8'} transparent opacity={win ? 1 : isFresh ? 0.95 : 0.45} depthWrite={false} />
+      </mesh>
+    )
+  })
+}
+
+// Bright frame on the cell the algorithm is working on right now.
+function Cursor({ cell }) {
+  const [wx, wz] = toWorld(cell)
+  return (
+    <mesh position={[wx, 0.03, wz]} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[0.4, 0.48, 4, 1, Math.PI / 4]} />
+      <meshBasicMaterial color="#38bdf8" />
+    </mesh>
+  )
+}
+
 // One cached canvas texture per score number.
 const numberTextures = new Map()
 function numberTexture(n) {
@@ -101,7 +131,7 @@ function flat(wx, wz, y) {
 }
 
 // Visited cells, the found path and — for methods that score cells — each cell's score.
-export function Trail({ visited, path, scores }) {
+export function Trail({ visited, path, scores, fresh, cursor, branches }) {
   const onPath = new Set(path.map((c) => c.join(',')))
   return (
     <>
@@ -109,21 +139,24 @@ export function Trail({ visited, path, scores }) {
         const [wx, wz] = toWorld(k.split(',').map(Number))
         const score = scores?.get(k)
         const hot = scores && onPath.has(k)
+        const isFresh = fresh?.has(k)
         return (
           <group key={k}>
             <mesh {...flat(wx, wz, 0.01)}>
               <planeGeometry args={[0.9, 0.9]} />
-              <meshBasicMaterial color={ORANGE} transparent opacity={hot ? 0.55 : 0.13} depthWrite={false} />
+              <meshBasicMaterial color={ORANGE} transparent opacity={hot ? 0.55 : isFresh ? 0.35 : 0.13} depthWrite={false} />
             </mesh>
             {score !== undefined && (
               <mesh {...flat(wx, wz, 0.02)}>
                 <planeGeometry args={[0.62, 0.62]} />
-                <meshBasicMaterial map={numberTexture(score)} transparent opacity={hot ? 1 : 0.7} depthWrite={false} />
+                <meshBasicMaterial map={numberTexture(score)} transparent opacity={hot || isFresh ? 1 : 0.7} depthWrite={false} />
               </mesh>
             )}
           </group>
         )
       })}
+      {branches && <Branches branches={branches} path={path} />}
+      {cursor && <Cursor cell={cursor} />}
       {!scores &&
         path.map((c, i) => {
           const [wx, wz] = toWorld(c)

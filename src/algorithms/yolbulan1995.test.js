@@ -35,3 +35,22 @@ test('no path when finish is walled off', () => {
   const walls = new Set([key(3, 4), key(4, 3)])
   assert.deepEqual(yolbulan1995(5, walls, [0, 0], [4, 4]).path, [])
 })
+
+test('steps replay to the same scores and trace the path back from finish', () => {
+  const walls = randomWalls(10, [0, 9], [9, 0], 0.25)
+  const { steps, scores, path } = yolbulan1995(10, walls, [0, 9], [9, 0])
+  const replayed = new Map(steps.filter((s) => s.t === 'assign').map((s) => [key(...s.cell), s.score]))
+  assert.deepEqual(replayed, scores)
+  const traced = steps.filter((s) => s.t === 'trace').map((s) => s.cell)
+  assert.deepEqual(traced, [...path].reverse())
+  // every assignment follows the expansion of a cell scored one lower
+  let current = null
+  for (const s of steps) {
+    if (s.t === 'expand') current = s.score
+    if (s.t === 'assign' && s.score > 0) {
+      assert.equal(s.score, current + 1)
+      assert.equal(Math.abs(s.from[0] - s.cell[0]) + Math.abs(s.from[1] - s.cell[1]), 1)
+      assert.equal(scores.get(key(...s.from)), s.score - 1)
+    }
+  }
+})

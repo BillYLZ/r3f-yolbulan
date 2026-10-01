@@ -20,7 +20,10 @@ React Three Fiber + shadcn/ui ile 3B yol bulma demosu: yarı saydam mavi küp, y
   - Finish: kırmızı bitiş direğini o kareye taşı
 - **Yol bulma yöntemi**: açılır listeden seç.
   - **A\***: Manhattan sezgiseliyle en kısa yolu garanti eder.
-  - **yolbulan1995**: her kareye puan verir. Start = 0, 0'ın boş komşularına 1, 1'lerin komşularına 2… Engellere puan verilmez; Finish puan alınca durur. Yol, Finish'ten her adımda bir küçük puana gidilerek bulunur. Puanlar karelerin üstünde dalga dalga görünür.
+  - **yolbulan1995**: her kareye puan verir. Start = 0, 0'ın boş komşularına 1, 1'lerin komşularına 2… Engellere puan verilmez; Finish puan alınca durur. Yol, Finish'ten her adımda bir küçük puana gidilerek bulunur.
+    - Bütün iterasyonlar adım adım, hızlıca oynatılır: işlenen kare mavi çerçeveyle, yeni yazılan puanlar parlak gösterilir.
+    - Denenen her adım mavi bir dal olarak çizilir; 0'dan Finish'e kadar denenen bütün yollar ağaç gibi büyür. Finish'e ulaşan dal turuncu olur.
+    - Alttaki panel: iterasyon sayacı, o anki işlem, ilerleme çubuğu ve **Atla**. Oynatma hızını **Hız** ayarı belirler (saniyede 40 × Hız iterasyon).
 
     <img src="docs/yolbulan1995.png" alt="yolbulan1995 puanları" width="70%" />
 - **Yolu Bul**: seçili yöntemle Start → Finish yolunu arar, taranan kareleri gösterir, sonra mavi küp yolu izler. (Boşluk/Enter da çalışır.)
