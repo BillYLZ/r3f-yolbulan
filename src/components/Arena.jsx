@@ -1,7 +1,6 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Edges, Grid } from '@react-three/drei'
-import * as THREE from 'three'
 import { SIZE, toWorld } from '../grid.js'
 
 const ORANGE = '#ef7d3c'
@@ -87,64 +86,18 @@ export function Trail({ visited, path }) {
   )
 }
 
-function Ring({ cell, color, pulse }) {
+// Colored cube tile marking the start or finish cell.
+export function Marker({ cell, color, pulse }) {
   const ref = useRef()
   useFrame(({ clock }) => {
-    if (!pulse) return
-    const s = 1 + Math.sin(clock.elapsedTime * 4) * 0.08
-    ref.current.scale.set(s, s, 1)
+    if (pulse) ref.current.material.emissiveIntensity = 0.5 + Math.sin(clock.elapsedTime * 4) * 0.3
   })
   const [wx, wz] = toWorld(cell)
   return (
-    <mesh ref={ref} position={[wx, 0.015, wz]} rotation={[-Math.PI / 2, 0, 0]}>
-      <ringGeometry args={[0.36, 0.46, 40]} />
-      <meshBasicMaterial color={color} transparent opacity={0.9} />
+    <mesh ref={ref} position={[wx, 0.1, wz]} castShadow receiveShadow>
+      <boxGeometry args={[0.9, 0.2, 0.9]} />
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} />
+      <Edges color="#ffffff" />
     </mesh>
-  )
-}
-
-export function StartPad({ cell }) {
-  return <Ring cell={cell} color="#ffffff" />
-}
-
-function checkerTexture() {
-  const c = document.createElement('canvas')
-  c.width = 64
-  c.height = 40
-  const g = c.getContext('2d')
-  for (let x = 0; x < 8; x++)
-    for (let y = 0; y < 5; y++) {
-      g.fillStyle = (x + y) % 2 ? '#111' : '#f4f4f4'
-      g.fillRect(x * 8, y * 8, 8, 8)
-    }
-  const t = new THREE.CanvasTexture(c)
-  t.magFilter = THREE.NearestFilter
-  t.colorSpace = THREE.SRGBColorSpace
-  return t
-}
-
-export function FinishFlag({ cell }) {
-  const flag = useRef()
-  const tex = useMemo(checkerTexture, [])
-  useFrame(({ clock }) => {
-    flag.current.rotation.y = Math.sin(clock.elapsedTime * 3) * 0.25
-  })
-  const [wx, wz] = toWorld(cell)
-  return (
-    <>
-      <Ring cell={cell} color={ORANGE} pulse />
-      <group position={[wx, 0, wz]}>
-        <mesh position={[0, 0.7, 0]} castShadow>
-          <cylinderGeometry args={[0.025, 0.025, 1.4, 8]} />
-          <meshStandardMaterial color="#d9d9d9" metalness={0.6} roughness={0.3} />
-        </mesh>
-        <group ref={flag} position={[0, 1.2, 0]}>
-          <mesh position={[0.26, 0, 0]} castShadow>
-            <planeGeometry args={[0.5, 0.32]} />
-            <meshStandardMaterial map={tex} side={THREE.DoubleSide} />
-          </mesh>
-        </group>
-      </group>
-    </>
   )
 }

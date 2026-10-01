@@ -4,9 +4,8 @@ import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { astar, key, randomWalls } from './astar.js'
 import { SIZE, inBounds, toCell } from './grid.js'
-import Robot from './components/Robot.jsx'
-import Joystick from './components/Joystick.jsx'
-import { Fence, FinishFlag, Floor, Obstacles, StartPad, Trail } from './components/Arena.jsx'
+import Runner from './components/Runner.jsx'
+import { Fence, Floor, Marker, Obstacles, Trail } from './components/Arena.jsx'
 
 const MODES = [
   ['wall', 'ENGEL'],
@@ -30,7 +29,7 @@ function CameraRig() {
 }
 
 export default function App() {
-  const [robot, setRobot] = useState(START)
+  const [start, setStart] = useState(START)
   const [snap, setSnap] = useState({ cell: START })
   const [goal, setGoal] = useState(GOAL)
   const [walls, setWalls] = useState(() => randomWalls(SIZE, START, GOAL, 0.25))
@@ -41,7 +40,6 @@ export default function App() {
   const [status, setStatus] = useState('START → FINISH')
 
   const queue = useRef([])
-  const dir = useRef(null)
   const timer = useRef(null)
   const paintValue = useRef(true)
   const lastPainted = useRef(null)
@@ -53,9 +51,8 @@ export default function App() {
     setPath([])
   }
 
-  const placeRobot = (cell) => {
+  const placeRunner = (cell) => {
     queue.current = []
-    setRobot(cell)
     setSnap({ cell })
   }
 
@@ -67,12 +64,15 @@ export default function App() {
     if (e.type === 'pointermove' && (mode !== 'wall' || lastPainted.current === k)) return
     lastPainted.current = k
     e.stopPropagation()
-    const occupied = k === key(...robot) || k === key(...goal)
+    const occupied = k === key(...start) || k === key(...goal)
     clearTrail()
     if (mode === 'start') {
-      if (!walls.has(k) && k !== key(...goal)) placeRobot(cell)
+      if (!walls.has(k) && k !== key(...goal)) {
+        setStart(cell)
+        placeRunner(cell)
+      }
     } else if (mode === 'goal') {
-      if (!walls.has(k) && k !== key(...robot)) setGoal(cell)
+      if (!walls.has(k) && k !== key(...start)) setGoal(cell)
     } else if (!occupied) {
       if (e.type === 'pointerdown') paintValue.current = !walls.has(k)
       setWalls((prev) => {
@@ -87,8 +87,8 @@ export default function App() {
   const findPath = () => {
     if (busy) return
     clearTrail()
-    queue.current = []
-    const result = astar(SIZE, walls, robot, goal)
+    placeRunner(start)
+    const result = astar(SIZE, walls, start, goal)
     setPhase('search')
     setStatus('ARANIYOR…')
     let i = 0
@@ -114,7 +114,7 @@ export default function App() {
   const shuffle = () => {
     if (busy) return
     clearTrail()
-    setWalls(randomWalls(SIZE, robot, goal, 0.25))
+    setWalls(randomWalls(SIZE, start, goal, 0.25))
     setStatus('START → FINISH')
   }
 
@@ -126,7 +126,6 @@ export default function App() {
 
   const onStep = useCallback(
     (cell) => {
-      setRobot(cell)
       if (queue.current.length === 0 && cell[0] === goal[0] && cell[1] === goal[1]) {
         setPhase('idle')
         setStatus('FINISH! 🏁')
@@ -135,34 +134,10 @@ export default function App() {
     [goal],
   )
 
-  // Manual driving: joystick / keyboard step the robot one free cell at a time.
   useEffect(() => {
-    const id = setInterval(() => {
-      if (!dir.current || phase !== 'idle' || queue.current.length) return
-      const next = [robot[0] + dir.current[0], robot[1] + dir.current[1]]
-      if (!inBounds(next) || walls.has(key(...next))) return
-      setVisited(new Set())
-      setPath([])
-      queue.current.push(next)
-    }, 50)
-    return () => clearInterval(id)
-  }, [robot, walls, phase])
-
-  useEffect(() => {
-    const keys = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] }
-    const down = (e) => {
-      if (keys[e.key]) {
-        dir.current = keys[e.key]
-        e.preventDefault()
-      } else if (e.key === ' ' || e.key === 'Enter') findPath()
-    }
-    const up = (e) => keys[e.key] && (dir.current = null)
+    const down = (e) => (e.key === ' ' || e.key === 'Enter') && findPath()
     window.addEventListener('keydown', down)
-    window.addEventListener('keyup', up)
-    return () => {
-      window.removeEventListener('keydown', down)
-      window.removeEventListener('keyup', up)
-    }
+    return () => window.removeEventListener('keydown', down)
   })
 
   useEffect(() => () => clearInterval(timer.current), [])
@@ -188,9 +163,9 @@ export default function App() {
         <Fence />
         <Trail visited={visited} path={path} />
         <Obstacles walls={walls} />
-        <StartPad cell={robot} />
-        <FinishFlag cell={goal} />
-        <Robot queue={queue} onStep={onStep} snap={snap} />
+        <Marker cell={start} color="#2fd27f" />
+        <Marker cell={goal} color="#e8434f" pulse />
+        <Runner queue={queue} onStep={onStep} snap={snap} />
         <OrbitControls
           enablePan={false}
           mouseButtons={{ RIGHT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY }}
@@ -215,18 +190,14 @@ export default function App() {
           </div>
         </div>
         <div className="status">{status}</div>
+        <div className="legend">
+          <span><i style={{ background: '#2fd27f' }} />START</span>
+          <span><i style={{ background: '#e8434f' }} />FINISH</span>
+          <span><i style={{ background: '#ef7d3c' }} />KÜP</span>
+        </div>
         <div className="bottom">
-          <Joystick onDir={(d) => (dir.current = d)} />
-          <div className="pad">
-            <div className="btn-wrap b">
-              <button className="round" onClick={shuffle}>B</button>
-              <span>RASTGELE</span>
-            </div>
-            <div className="btn-wrap a">
-              <button className="round" onClick={findPath}>A</button>
-              <span>YOLU BUL</span>
-            </div>
-          </div>
+          <button className="bar" onClick={shuffle}>RASTGELE</button>
+          <button className="bar orange" onClick={findPath}>YOLU BUL ▶</button>
         </div>
       </div>
     </>
