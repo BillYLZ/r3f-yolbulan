@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { BarChart3, ChevronUp, LayoutGrid, Box, BrickWall, Footprints, Hexagon, MoveDiagonal, Square, Triangle, Waves, X, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
+import { BarChart3, ChevronUp, CircleStop, LayoutGrid, Box, BrickWall, Footprints, Hexagon, MoveDiagonal, Square, Triangle, Waves, X, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
 import { METHODS, key, methodById, pathCost, randomTerrain, randomWalls, supports } from './algorithms/index.js'
 import { ARENAS, GRIDS, makeGrids } from './grids.js'
 import Runner from './components/Runner.jsx'
@@ -382,12 +382,23 @@ export default function App() {
     setCompare(rows)
   }
 
+  // Stop whatever is running: the replay freezes on its current frame, the cube finishes its current step.
+  const stop = () => {
+    if (!busy) return
+    clearInterval(timer.current)
+    queue.current = queue.current.slice(0, 1)
+    setPhase('stopped')
+  }
+
   const onStep = useCallback(() => {
-    if (queue.current.length === 0) setPhase('done')
+    if (queue.current.length === 0) setPhase((p) => (p === 'walk' ? 'done' : p))
   }, [])
 
   useEffect(() => {
-    const down = (e) => (e.key === ' ' || e.key === 'Enter') && e.target === document.body && findPath()
+    const down = (e) => {
+      if (e.key === 'Escape') stop()
+      else if ((e.key === ' ' || e.key === 'Enter') && e.target === document.body) findPath()
+    }
     window.addEventListener('keydown', down)
     return () => window.removeEventListener('keydown', down)
   })
@@ -402,6 +413,7 @@ export default function App() {
     walk: { text: 'Yol izleniyor', variant: 'default' },
     done: { text: 'Finish! 🏁', variant: 'default' },
     blocked: { text: 'Yol yok', variant: 'destructive' },
+    stopped: { text: 'Durduruldu', variant: 'outline' },
   }[phase]
 
   return (
@@ -445,16 +457,23 @@ export default function App() {
           />
         )}
         {!panelOpen && (
-          <Button
-            variant="secondary"
-            className="absolute bottom-3 left-1/2 h-10 -translate-x-1/2 rounded-full px-5 shadow-lg backdrop-blur md:hidden"
-            onClick={() => setPanelOpen(true)}
-            onPointerDown={(e) => (swipe.current = e.clientY)}
-            onPointerUp={(e) => swipe.current !== null && swipe.current - e.clientY > 20 && setPanelOpen(true)}
-            aria-label="Paneli aç"
-          >
-            <ChevronUp /> Panel
-          </Button>
+          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2 md:hidden">
+            {busy && (
+              <Button variant="destructive" className="h-10 rounded-full px-5 shadow-lg" onClick={stop} aria-label="Durdur">
+                <CircleStop /> Durdur
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              className="h-10 rounded-full px-5 shadow-lg backdrop-blur"
+              onClick={() => setPanelOpen(true)}
+              onPointerDown={(e) => (swipe.current = e.clientY)}
+              onPointerUp={(e) => swipe.current !== null && swipe.current - e.clientY > 20 && setPanelOpen(true)}
+              aria-label="Paneli aç"
+            >
+              <ChevronUp /> Panel
+            </Button>
+          </div>
         )}
         {compare && (
           <ComparePanel
@@ -598,9 +617,15 @@ export default function App() {
           </div>
 
           <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 md:grid-cols-2">
-            <Button size="lg" onClick={findPath} disabled={busy} className="md:col-span-2">
-              <Play /> Yolu Bul
-            </Button>
+            {busy ? (
+              <Button size="lg" variant="destructive" onClick={stop} className="md:col-span-2">
+                <CircleStop /> Durdur
+              </Button>
+            ) : (
+              <Button size="lg" onClick={findPath} className="md:col-span-2">
+                <Play /> Yolu Bul
+              </Button>
+            )}
             <Button size="lg" variant="secondary" onClick={shuffle} disabled={busy} aria-label="Rastgele">
               <Shuffle /> <span className="hidden md:inline">Rastgele</span>
             </Button>

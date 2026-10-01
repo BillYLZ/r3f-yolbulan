@@ -69,6 +69,7 @@ Her adım 1 tutar (çapraz adım √2). **Çamur**a girmek 3, **su**ya girmek 5 
 ## Kullanım
 
 - **Arenaya dokununca**: Engel · Çamur · Su (sürükleyerek boyanır) · Start · Finish.
+- **Durdur**: arama, oynatma ya da yürüyüş sürerken **Yolu Bul** butonu **Durdur**'a dönüşür (telefonda panel kapalıyken altta **Durdur** düğmesi, klavyede **Esc**). Görüntü olduğu yerde kalır, küp bulunduğu adımı bitirip durur.
 - **Rastgele**: seçili yoğunlukta engel ve arazi (her zaman çözülebilir). **Temizle**: hepsini siler.
 - **Engel / Arazi / Hız**: rastgele haritanın doluluğu ve oynatma hızı. Hız 1–10 (varsayılan 6): iterasyonlar saniyede 80 × Hız, küp saniyede 2 × Hız kare.
 - **Kamera**: Perspektif · Üstten · İzometrik · Takip (küpü izler). Seçili görünüme tekrar dokunmak o açıya sıfırlar.
