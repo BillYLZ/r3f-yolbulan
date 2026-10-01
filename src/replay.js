@@ -38,7 +38,7 @@ export function viewAt(result, tl, p, i) {
       if (s < i) scores.set(k, s)
       if (s === i - 1) fresh.add(k)
     }
-    return { p, i, scores, fresh, branches, traced, cursor, last }
+    return { p, i, scores, sides: result.sides, fresh, branches, traced, cursor, last }
   }
 
   for (const [k, s] of result.scores) scores.set(k, s)
@@ -46,7 +46,7 @@ export function viewAt(result, tl, p, i) {
   for (let j = 0; j < iterCount; j++) {
     const st = tl.iterSteps[j]
     const recent = p === 1 && j >= iterCount - 10
-    if (st.t === 'assign' && st.from) branches.push([st.from, st.cell, recent])
+    if (st.t === 'assign' && st.from) branches.push([st.from, st.cell, recent, st.side ?? 'a'])
     if (recent && st.t === 'assign') fresh.add(key(...st.cell))
     if (p === 1) {
       cursor = st.cell
@@ -61,5 +61,5 @@ export function viewAt(result, tl, p, i) {
       last = tl.traceSteps[j]
     }
   }
-  return { p, i, scores, fresh, branches, traced, cursor, last }
+  return { p, i, scores, sides: result.sides, fresh, branches, traced, cursor, last }
 }

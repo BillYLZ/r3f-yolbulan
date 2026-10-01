@@ -40,3 +40,14 @@ test('path is drawn only in the last phase, and is complete when finished', () =
   assert.deepEqual(done.traced, [...result.path].reverse())
   assert.equal(done.cursor, null)
 })
+
+test('two-sided waves keep their side on branches', async () => {
+  const { bidirectional } = await import('./algorithms/bidirectional.js')
+  const grid = squareGrid(10)
+  const result = bidirectional(grid, new Set(), [0, 9], [9, 0])
+  const tl = buildTimeline(result, 4)
+  const v = viewAt(result, tl, 3, 0)
+  const sides = new Set(v.branches.map((b) => b[3]))
+  assert.deepEqual([...sides].sort(), ['a', 'b'])
+  assert.deepEqual(v.traced, [...result.path].reverse())
+})

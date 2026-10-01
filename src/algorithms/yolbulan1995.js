@@ -40,7 +40,7 @@ export function yolbulan1995(grid, walls, start, goal, { random = false, rng = M
     for (const [x, y] of order(wave)) {
       const score = scores.get(key(x, y))
       steps.push({ t: 'expand', cell: [x, y], score })
-      for (const [nx, ny] of order(grid.neighbors([x, y]))) {
+      for (const [nx, ny] of order(grid.neighbors([x, y], walls))) {
         const nk = key(nx, ny)
         if (walls.has(nk) || scores.has(nk)) continue
         scores.set(nk, score + 1)
@@ -63,7 +63,7 @@ export function yolbulan1995(grid, walls, start, goal, { random = false, rng = M
     if (s === 0) continue
     const [x, y] = k.split(',').map(Number)
     let w = 0
-    for (const [nx, ny] of grid.neighbors([x, y])) if (scores.get(key(nx, ny)) === s - 1) w += ways.get(key(nx, ny)) ?? 0
+    for (const [nx, ny] of grid.neighbors([x, y], walls)) if (scores.get(key(nx, ny)) === s - 1) w += ways.get(key(nx, ny)) ?? 0
     ways.set(k, w)
   }
 
@@ -73,7 +73,7 @@ export function yolbulan1995(grid, walls, start, goal, { random = false, rng = M
   let score = scores.get(goalKey)
   steps.push({ t: 'trace', cell: goal, score })
   while (score > 0) {
-    const options = grid.neighbors([x, y]).filter(([px, py]) => scores.get(key(px, py)) === score - 1)
+    const options = grid.neighbors([x, y], walls).filter(([px, py]) => scores.get(key(px, py)) === score - 1)
     const prev = random ? options[Math.floor(rng() * options.length)] : options[0]
     ;[x, y] = prev
     score -= 1

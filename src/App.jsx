@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Box, BrickWall, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
-import { METHODS, key, methodById, randomWalls } from './algorithms/index.js'
+import { BarChart3, Box, BrickWall, Footprints, Hexagon, MoveDiagonal, Square, Triangle, Waves, X, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
+import { METHODS, key, methodById, pathCost, randomTerrain, randomWalls, supports } from './algorithms/index.js'
 import { GRIDS } from './grids.js'
 import Runner from './components/Runner.jsx'
 import { buildTimeline, viewAt } from './replay.js'
 import CameraRig from './components/CameraRig.jsx'
-import { Fence, Floor, Marker, Obstacles, Trail } from './components/Arena.jsx'
+import { Fence, Floor, Marker, Obstacles, Terrain, Trail } from './components/Arena.jsx'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,6 +18,69 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const START_COLOR = '#2fd27f'
 const GOAL_COLOR = '#e8434f'
+const MUD_COLOR = '#b07a45'
+const WATER_COLOR = '#3b82f6'
+
+const formatCost = (c) => (Number.isInteger(c) ? String(c) : c.toFixed(1))
+
+// Every method that works on this floor, run on the same map. Best values are highlighted.
+function ComparePanel({ rows, current, onPick, onClose }) {
+  const found = rows.filter((r) => r.found)
+  const best = {
+    steps: Math.min(...found.map((r) => r.steps)),
+    cost: Math.min(...found.map((r) => r.cost)),
+    scanned: Math.min(...rows.map((r) => r.scanned)),
+  }
+  const hi = (on) => (on ? 'text-primary font-semibold' : '')
+  return (
+    <div className="pointer-events-auto absolute inset-x-0 top-14 z-10 mx-auto w-[min(calc(100%-2rem),480px)] rounded-lg border bg-card p-3 text-xs shadow-lg backdrop-blur md:top-16 md:left-88">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-medium">Aynı haritada bütün yöntemler</span>
+        <Button size="icon" variant="ghost" className="size-7" onClick={onClose} aria-label="Kapat">
+          <X />
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full tabular-nums">
+          <thead className="text-muted-foreground">
+            <tr className="text-left">
+              <th className="py-1 pr-2 font-normal">Yöntem</th>
+              <th className="px-2 text-right font-normal">Adım</th>
+              <th className="px-2 text-right font-normal">Maliyet</th>
+              <th className="px-2 text-right font-normal">Taranan</th>
+              <th className="hidden pl-2 text-right font-normal sm:table-cell">ms</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr
+                key={r.id}
+                onClick={() => onPick(r.id)}
+                className={`cursor-pointer border-t hover:bg-accent/50 ${r.id === current ? 'bg-accent/30' : ''}`}
+              >
+                <td className="py-1.5 pr-2 whitespace-nowrap">
+                  {r.name}
+                  {r.found && r.cost === best.cost && <span className="ml-1 text-primary">★</span>}
+                </td>
+                {r.found ? (
+                  <>
+                    <td className={`px-2 text-right ${hi(r.steps === best.steps)}`}>{r.steps}</td>
+                    <td className={`px-2 text-right ${hi(r.cost === best.cost)}`}>{formatCost(r.cost)}</td>
+                  </>
+                ) : (
+                  <td colSpan={2} className="px-2 text-right text-destructive">bulamadı</td>
+                )}
+                <td className={`px-2 text-right ${hi(r.scanned === best.scanned)}`}>{r.scanned}</td>
+                <td className="hidden pl-2 text-right text-muted-foreground sm:table-cell">{r.ms < 1 ? '<1' : Math.round(r.ms)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">★ en ucuz yol · turuncu: o sütunun en iyisi · bir satıra dokunarak o yöntemi seç</p>
+    </div>
+  )
+}
 
 function Stat({ label, value }) {
   return (
@@ -95,6 +158,10 @@ export default function App() {
   const [density, setDensity] = useState(25)
   const [speed, setSpeed] = useState(4)
   const [walls, setWalls] = useState(() => randomWalls(GRIDS.square, GRIDS.square.start, GRIDS.square.goal, 0.25))
+  const [terrainDensity, setTerrainDensity] = useState(10)
+  const [terrain, setTerrain] = useState(() => randomTerrain(GRIDS.square, walls, GRIDS.square.start, GRIDS.square.goal, 0.1))
+  const [gridId, setGridId] = useState('square')
+  const [compare, setCompare] = useState(null)
   const [mode, setMode] = useState('wall')
   const [visited, setVisited] = useState(new Set())
   const [path, setPath] = useState([])
@@ -104,7 +171,7 @@ export default function App() {
   const [view, setView] = useState('persp')
   const [method, setMethod] = useState('astar')
   const [randomPath, setRandomPath] = useState(true)
-  const grid = GRIDS[methodById(method).grid]
+  const grid = GRIDS[gridId]
   const [resetKey, setResetKey] = useState(0)
   const [gestures, setGestures] = useState(false)
   const runnerRef = useRef()
@@ -128,15 +195,17 @@ export default function App() {
     setSnap({ cell })
   }
 
+  const PAINT = { wall: true, mud: 3, water: 5 }
   const pick = (e) => {
     if (busy || gestures || e.nativeEvent.buttons !== 1) return
     const cell = grid.toCell(e.point.x, e.point.z)
     if (!cell) return
     const k = key(...cell)
-    if (e.type === 'pointermove' && (mode !== 'wall' || lastPainted.current === k)) return
+    if (e.type === 'pointermove' && (!(mode in PAINT) || lastPainted.current === k)) return
     lastPainted.current = k
     e.stopPropagation()
     clearTrail()
+    const isEnd = k === key(...start) || k === key(...goal)
     if (mode === 'start') {
       if (!walls.has(k) && k !== key(...goal)) {
         setStart(cell)
@@ -144,19 +213,34 @@ export default function App() {
       }
     } else if (mode === 'goal') {
       if (!walls.has(k) && k !== key(...start)) setGoal(cell)
-    } else if (k !== key(...start) && k !== key(...goal)) {
+    } else if (mode === 'wall' && !isEnd) {
+      // first touch decides: add walls if this cell was free, otherwise erase while dragging
       if (e.type === 'pointerdown') paintValue.current = !walls.has(k)
       setWalls((prev) => {
         const next = new Set(prev)
         paintValue.current ? next.add(k) : next.delete(k)
         return next
       })
+      if (paintValue.current) setTerrain((prev) => (prev.has(k) ? new Map([...prev].filter(([c]) => c !== k)) : prev))
+    } else if (mode === 'mud' || mode === 'water') {
+      const cost = PAINT[mode]
+      if (e.type === 'pointerdown') paintValue.current = terrain.get(k) !== cost
+      setTerrain((prev) => {
+        const next = new Map(prev)
+        paintValue.current ? next.set(k, cost) : next.delete(k)
+        return next
+      })
+      if (paintValue.current) setWalls((prev) => (prev.has(k) ? new Set([...prev].filter((c) => c !== k)) : prev))
     }
   }
 
   const finishSearch = (result) => {
     clearInterval(timer.current)
-    setStats({ steps: result.path.length ? result.path.length - 1 : null, scanned: result.visited.length })
+    setStats({
+      steps: result.path.length ? result.path.length - 1 : null,
+      cost: result.path.length ? pathCost(grid, result.path, terrain) : null,
+      scanned: new Set(result.visited.map((c) => key(...c))).size,
+    })
     if (!result.path.length) return setPhase('blocked')
     setPath(result.path)
     queue.current = result.path.slice(1)
@@ -169,7 +253,7 @@ export default function App() {
     if (busy) return
     clearTrail()
     placeRunner(start)
-    const result = methodById(method).run(grid, walls, start, goal, { random: randomPath })
+    const result = methodById(method).run(grid, walls, start, goal, { random: randomPath, costs: terrain })
     pending.current = result
     setPhase('search')
 
@@ -197,9 +281,11 @@ export default function App() {
       return
     }
 
+    // Other methods: reveal the scanned cells in about two seconds at most.
+    const perTick = Math.max(4, Math.ceil(result.visited.length / 120))
     let i = 0
     timer.current = setInterval(() => {
-      i = Math.min(i + 4, result.visited.length)
+      i = Math.min(i + perTick, result.visited.length)
       setVisited(new Set(result.visited.slice(0, i).map((p) => key(...p))))
       if (i >= result.visited.length) finishSearch(result)
     }, 16)
@@ -217,33 +303,68 @@ export default function App() {
     const r = pending.current
     if (!play || play.p < play.tl.phases.length || !r) return null
     if (!r.path.length) return `${r.scores.size} kare puanlandı · Finish puan alamadı, yol yok`
+    if (r.sides) return `${r.scores.size} kare puanlandı · dalgalar buluştu · yol ${r.path.length - 1} adım`
     const count = r.pathCount > 1 ? ` · ${r.pathCount.toLocaleString('tr-TR')} farklı en kısa yol var` : ''
     return `${r.scores.size} kare puanlandı · yol ${r.path.length - 1} adım${count}`
   }, [play])
 
-  // Switching to a method on another floor (squares ↔ triangles) rebuilds the arena for that grid.
   const changeMethod = (id) => {
     clearTrail()
-    const next = GRIDS[methodById(id).grid]
-    if (next !== grid) {
-      setStart(next.start)
-      setGoal(next.goal)
-      setWalls(randomWalls(next, next.start, next.goal, density / 100))
-      placeRunner(next.start)
-    }
     setMethod(id)
+  }
+
+  // A new floor rebuilds the arena: start, finish, walls and terrain for that grid.
+  const changeGrid = (id) => {
+    if (!id || busy) return
+    clearTrail()
+    setCompare(null)
+    const next = GRIDS[id]
+    const w = randomWalls(next, next.start, next.goal, density / 100)
+    setGridId(id)
+    setStart(next.start)
+    setGoal(next.goal)
+    setWalls(w)
+    setTerrain(randomTerrain(next, w, next.start, next.goal, terrainDensity / 100))
+    placeRunner(next.start)
+    if (!supports(methodById(method), id)) setMethod('astar')
   }
 
   const shuffle = () => {
     if (busy) return
     clearTrail()
-    setWalls(randomWalls(grid, start, goal, density / 100))
+    setCompare(null)
+    const w = randomWalls(grid, start, goal, density / 100)
+    setWalls(w)
+    setTerrain(randomTerrain(grid, w, start, goal, terrainDensity / 100))
   }
 
   const clearWalls = () => {
     if (busy) return
     clearTrail()
+    setCompare(null)
     setWalls(new Set())
+    setTerrain(new Map())
+  }
+
+  // Runs every method that works on this floor on the current map and lists the results side by side.
+  const runCompare = () => {
+    if (busy) return
+    const rows = METHODS.filter((m) => supports(m, grid.id)).map((m) => {
+      const t0 = performance.now()
+      const r = m.run(grid, walls, start, goal, { costs: terrain })
+      const ms = performance.now() - t0
+      const found = r.path.length > 0
+      return {
+        id: m.id,
+        name: m.name,
+        found,
+        steps: found ? r.path.length - 1 : null,
+        cost: found ? pathCost(grid, r.path, terrain) : null,
+        scanned: new Set(r.visited.map((c) => key(...c))).size,
+        ms,
+      }
+    })
+    setCompare(rows)
   }
 
   const onStep = useCallback(() => {
@@ -277,11 +398,13 @@ export default function App() {
           <directionalLight position={[6, 14, 8]} intensity={1.6} />
           <Floor grid={grid} onPick={pick} />
           <Fence grid={grid} />
+          <Terrain grid={grid} terrain={terrain} />
           <Trail
             grid={grid}
             visited={frame ? new Set(frame.scores.keys()) : visited}
             path={frame ? frame.traced : path}
             scores={frame?.scores}
+            sides={frame?.sides}
             fresh={frame?.fresh}
             cursor={frame?.cursor}
             branches={frame?.branches}
@@ -303,6 +426,17 @@ export default function App() {
             onSkip={phase === 'search' ? skipPhase : null}
           />
         )}
+        {compare && (
+          <ComparePanel
+            rows={compare}
+            current={method}
+            onPick={(id) => {
+              changeMethod(id)
+              setCompare(null)
+            }}
+            onClose={() => setCompare(null)}
+          />
+        )}
         <div className="absolute top-3 right-3 flex flex-col items-end gap-2 md:top-4 md:right-4">
           <Button
             size="icon"
@@ -322,7 +456,7 @@ export default function App() {
         </div>
       </div>
 
-      <Card className="gap-4 rounded-none rounded-t-xl border-x-0 border-b-0 py-4 backdrop-blur md:absolute md:top-4 md:left-4 md:w-80 md:gap-5 md:rounded-xl md:border md:py-6">
+      <Card className="max-h-[56%] gap-4 overflow-y-auto rounded-none rounded-t-xl border-x-0 border-b-0 py-4 backdrop-blur md:absolute md:top-4 md:left-4 md:max-h-[calc(100%-2rem)] md:w-80 md:gap-4 md:rounded-xl md:border md:py-5">
         <CardHeader className="hidden md:grid">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Route className="size-5 text-primary" /> Yol Bulan
@@ -332,15 +466,39 @@ export default function App() {
         <CardContent className="flex flex-col gap-4 px-4 md:px-6">
           <div className="flex flex-col gap-2">
             <span className="hidden text-xs font-medium text-muted-foreground md:block">Arenaya dokununca</span>
-            <ToggleGroup type="single" variant="outline" value={mode} onValueChange={(v) => v && setMode(v)} className="w-full">
-              <ToggleGroupItem value="wall" aria-label="Engel">
+            <ToggleGroup type="single" variant="outline" size="sm" value={mode} onValueChange={(v) => v && setMode(v)} className="w-full md:[&_svg]:hidden">
+              <ToggleGroupItem value="wall" aria-label="Engel" className="gap-1 text-xs">
                 <BrickWall /> Engel
               </ToggleGroupItem>
-              <ToggleGroupItem value="start" aria-label="Start">
+              <ToggleGroupItem value="mud" aria-label="Çamur" className="gap-1 text-xs">
+                <Footprints style={{ color: MUD_COLOR }} /> Çamur
+              </ToggleGroupItem>
+              <ToggleGroupItem value="water" aria-label="Su" className="gap-1 text-xs">
+                <Waves style={{ color: WATER_COLOR }} /> Su
+              </ToggleGroupItem>
+              <ToggleGroupItem value="start" aria-label="Start" className="gap-1 text-xs">
                 <MapPin style={{ color: START_COLOR }} /> Start
               </ToggleGroupItem>
-              <ToggleGroupItem value="goal" aria-label="Finish">
+              <ToggleGroupItem value="goal" aria-label="Finish" className="gap-1 text-xs">
                 <Flag style={{ color: GOAL_COLOR }} /> Finish
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="hidden text-xs font-medium text-muted-foreground md:block">Zemin</span>
+            <ToggleGroup type="single" variant="outline" size="sm" value={gridId} onValueChange={changeGrid} disabled={busy} className="w-full">
+              <ToggleGroupItem value="square" aria-label="Kare zemin" className="gap-1 text-xs">
+                <Square /> Kare
+              </ToggleGroupItem>
+              <ToggleGroupItem value="diag" aria-label="Çapraz zemin" className="gap-1 text-xs">
+                <MoveDiagonal /> Çapraz
+              </ToggleGroupItem>
+              <ToggleGroupItem value="tri" aria-label="Üçgen zemin" className="gap-1 text-xs">
+                <Triangle /> Üçgen
+              </ToggleGroupItem>
+              <ToggleGroupItem value="hex" aria-label="Altıgen zemin" className="gap-1 text-xs">
+                <Hexagon /> Altıgen
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
@@ -354,9 +512,13 @@ export default function App() {
               </SelectTrigger>
               <SelectContent>
                 {METHODS.map((m) => (
-                  <SelectItem key={m.id} value={m.id} disabled={!m.ready} hint={m.description}>
+                  <SelectItem
+                    key={m.id}
+                    value={m.id}
+                    disabled={!supports(m, gridId)}
+                    hint={supports(m, gridId) ? m.description : `Sadece ${m.grids.map((g) => GRIDS[g].label).join(', ')} zeminde`}
+                  >
                     {m.name}
-                    {!m.ready && ' · yakında'}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -379,7 +541,7 @@ export default function App() {
             )}
           </div>
 
-          <div className="grid grid-cols-[1fr_auto_auto] gap-2 md:grid-cols-2">
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 md:grid-cols-2">
             <Button size="lg" onClick={findPath} disabled={busy} className="md:col-span-2">
               <Play /> Yolu Bul
             </Button>
@@ -388,6 +550,9 @@ export default function App() {
             </Button>
             <Button size="lg" variant="outline" onClick={clearWalls} disabled={busy} aria-label="Temizle">
               <Eraser /> <span className="hidden md:inline">Temizle</span>
+            </Button>
+            <Button size="lg" variant="outline" onClick={runCompare} disabled={busy} aria-label="Yöntemleri karşılaştır" className="md:col-span-2">
+              <BarChart3 /> <span className="hidden md:inline">Yöntemleri karşılaştır</span>
             </Button>
           </div>
 
@@ -421,25 +586,29 @@ export default function App() {
 
           <Separator className="hidden md:block" />
 
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <div className="grid grid-cols-3 gap-x-4 gap-y-3">
             <label className="flex flex-col gap-2 text-xs text-muted-foreground">
-              <span className="flex justify-between">Engel yoğunluğu <span className="text-foreground tabular-nums">%{density}</span></span>
-              <Slider min={5} max={45} step={5} value={[density]} onValueChange={([v]) => setDensity(v)} />
+              <span className="flex justify-between">Engel <span className="text-foreground tabular-nums">%{density}</span></span>
+              <Slider min={5} max={45} step={5} value={[density]} onValueChange={([v]) => setDensity(v)} aria-label="Engel yoğunluğu" />
+            </label>
+            <label className="flex flex-col gap-2 text-xs text-muted-foreground">
+              <span className="flex justify-between">Arazi <span className="text-foreground tabular-nums">%{terrainDensity}</span></span>
+              <Slider min={0} max={40} step={5} value={[terrainDensity]} onValueChange={([v]) => setTerrainDensity(v)} aria-label="Çamur ve su yoğunluğu" />
             </label>
             <label className="flex flex-col gap-2 text-xs text-muted-foreground">
               <span className="flex justify-between">Hız <span className="text-foreground tabular-nums">{speed}×</span></span>
-              <Slider min={1} max={10} step={1} value={[speed]} onValueChange={([v]) => setSpeed(v)} />
+              <Slider min={1} max={10} step={1} value={[speed]} onValueChange={([v]) => setSpeed(v)} aria-label="Hız" />
             </label>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <Stat label="adım" value={stats?.steps ?? '–'} />
+            <Stat label="maliyet" value={stats?.cost != null ? formatCost(stats.cost) : '–'} />
             <Stat label="taranan" value={stats?.scanned ?? '–'} />
-            <Stat label="engel" value={walls.size} />
           </div>
 
           <p className="hidden text-xs text-muted-foreground md:block">
-            ✋ açıkken sol tık döndürür, sağ tık kaydırır. Kapalıyken sağ tık döndürür. Tekerlek: yakınlaştır · Boşluk: yolu bul
+            Maliyet: her adım 1 (çapraz √2); çamura girmek 3, suya 5 katı. ✋ açıkken sol tık döndürür, sağ tık kaydırır; kapalıyken sağ tık döndürür. Tekerlek: yakınlaştır · Boşluk: yolu bul
           </p>
         </CardContent>
       </Card>

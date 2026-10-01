@@ -6,6 +6,8 @@ import { buildWallShell } from '../wallMesh.js'
 
 const ORANGE = '#ef7d3c'
 const CELL_LINE = '#3b2b24'
+const VIOLET = '#a78bfa'
+const TERRAIN = { 3: '#b07a45', 5: '#3b82f6' }
 
 // Flat geometries for a cell's outline, cached by shape: tiles, and a frame (ring) for the cursor.
 // Shapes are built in the XY plane around the cell centre and laid flat with rotation -90° about X.
@@ -142,7 +144,7 @@ export function Obstacles({ grid, walls }) {
 function Branches({ grid, branches, path }) {
   const onPath = new Set()
   for (let i = 1; i < path.length; i++) onPath.add(`${path[i - 1]}|${path[i]}`).add(`${path[i]}|${path[i - 1]}`)
-  return branches.map(([a, b, isFresh]) => {
+  return branches.map(([a, b, isFresh, side]) => {
     const [ax, az] = grid.toWorld(a)
     const [bx, bz] = grid.toWorld(b)
     const win = onPath.has(`${a}|${b}`)
@@ -155,7 +157,7 @@ function Branches({ grid, branches, path }) {
         rotation={[-Math.PI / 2, 0, angle]}
       >
         <planeGeometry args={[len, win ? 0.16 : 0.06]} />
-        <meshBasicMaterial color={win ? ORANGE : '#38bdf8'} transparent opacity={win ? 1 : isFresh ? 0.95 : 0.45} depthWrite={false} />
+        <meshBasicMaterial color={win ? ORANGE : side === 'b' ? '#c084fc' : '#38bdf8'} transparent opacity={win ? 1 : isFresh ? 0.95 : 0.45} depthWrite={false} />
       </mesh>
     )
   })
@@ -190,8 +192,21 @@ function numberTexture(n) {
   return numberTextures.get(n)
 }
 
+// Mud (3) and water (5) cells, tinted on the floor under everything else.
+export function Terrain({ grid, terrain }) {
+  return [...terrain].map(([k, cost]) => {
+    const cell = k.split(',').map(Number)
+    const [wx, wz] = grid.toWorld(cell)
+    return (
+      <mesh key={k} {...flat(wx, wz, 0.005)} geometry={cellGeometry(grid, cell, 0.97)}>
+        <meshBasicMaterial color={TERRAIN[cost]} transparent opacity={0.42} depthWrite={false} />
+      </mesh>
+    )
+  })
+}
+
 // Visited cells, the found path and — for methods that score cells — each cell's score.
-export function Trail({ grid, visited, path, scores, fresh, cursor, branches }) {
+export function Trail({ grid, visited, path, scores, sides, fresh, cursor, branches }) {
   const onPath = new Set(path.map((c) => c.join(',')))
   const label = 0.62 * grid.cellSize
   return (
@@ -202,10 +217,11 @@ export function Trail({ grid, visited, path, scores, fresh, cursor, branches }) 
         const score = scores?.get(k)
         const hot = scores && onPath.has(k)
         const isFresh = fresh?.has(k)
+        const tint = sides?.get(k) === 'b' && !hot ? VIOLET : ORANGE
         return (
           <group key={k}>
             <mesh {...flat(wx, wz, 0.01)} geometry={cellGeometry(grid, cell, 0.9)}>
-              <meshBasicMaterial color={ORANGE} transparent opacity={hot ? 0.55 : isFresh ? 0.35 : 0.13} depthWrite={false} />
+              <meshBasicMaterial color={tint} transparent opacity={hot ? 0.55 : isFresh ? 0.35 : 0.13} depthWrite={false} />
             </mesh>
             {score !== undefined && (
               <mesh {...flat(wx, wz, 0.02)}>

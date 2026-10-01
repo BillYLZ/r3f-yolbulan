@@ -1,6 +1,6 @@
 # r3f-yolbulan
 
-React Three Fiber + shadcn/ui ile 3B yol bulma demosu: yarı saydam mavi küp, yeşil **START** direğinden kırmızı **FINISH** direğine en kısa yolu bulup yuvarlanarak gider.
+React Three Fiber + shadcn/ui ile 3B yol bulma laboratuvarı: 9 yöntem, 4 zemin, çamur ve su. Yarı saydam mavi küp, yeşil **START** direğinden kırmızı **FINISH** direğine seçilen yöntemin bulduğu yolu yürür.
 
 ## ▶ Demo
 
@@ -12,35 +12,61 @@ React Three Fiber + shadcn/ui ile 3B yol bulma demosu: yarı saydam mavi küp, y
   <img src="docs/mobile.png" alt="Telefon görünümü" width="28%" />
 </p>
 
+## Zeminler
+
+| Zemin | Komşu | Not |
+| --- | --- | --- |
+| **Kare** | 4 | sağ, sol, ileri, geri |
+| **Çapraz** | 8 | çapraz adım √2 tutar; iki engelin köşesinden çapraz geçilmez |
+| **Üçgen** | 3 | kenar paylaşan üçgenler |
+| **Altıgen** | 6 | oyunların sevdiği zemin |
+
+Zemin değişince Start, Finish, engeller ve arazi o zemine göre yeniden kurulur.
+
+## Yöntemler
+
+| Yöntem | Ne yapar | En kısa yol? |
+| --- | --- | --- |
+| **A\*** | Hedefe yönelerek arar | ✓ en ucuz (çamur/su dahil) |
+| **Dijkstra** | Her yöne eşit yayılır | ✓ en ucuz (çamur/su dahil) |
+| **yolbulan1995** | Start = 0, komşulara 1, 2, 3… puan verir; Finish'ten geriye iner | ✓ en az adım |
+| **Çift yönlü dalga** | Start'tan ve Finish'ten iki dalga yayılır, ortada buluşur | ✓ en az adım |
+| **Jump Point Search** | Çapraz zeminde A*: düz ve çapraz çizgiler boyunca atlar (sadece Çapraz zemin) | ✓ en kısa mesafe |
+| **Açgözlü** | Hep hedefe en yakın görünen kareye gider | ✗ hızlı ama uzayabilir |
+| **Derinlik öncelikli (DFS)** | Bir yöne gidebildiği kadar gider, çıkmazda geri döner | ✗ dolambaçlı |
+| **Sağ el kuralı (robot)** | Hedefe yürür; engele çarpınca sağ elini duvardan ayırmadan dolaşır | ✗ bazen bulamaz |
+| **Rastgele yürüyüş** | Rastgele dolaşır; küp döngüleri silinmiş yolu yürür | ✗ bazen bulamaz |
+
+**yolbulan1995** ve **Çift yönlü dalga** dört aşamada oynatılır:
+1. **Sayılar**: bütün puanlar dalga dalga yazılır (çift yönlüde Start tarafı turuncu, Finish tarafı mor).
+2. **İterasyonlar**: her iterasyon **Hız** ayarına göre (saniyede 40 × Hız) oynatılır; işlenen kare mavi çerçeveli, denenen her adım bir dal olarak büyür.
+3. **Yol**: bulunan yol Finish'ten Start'a adım adım çizilir.
+4. **Git**: küp yolu yürür.
+
+Alttaki panel aşamayı ve o anki işlemi gösterir; **Atla** o aşamayı geçer. **Rastgele yol** açıkken eşit uzunluktaki yollardan her seferinde farklısı bulunur ve kaç farklı en kısa yol olduğu yazılır.
+
+<p>
+  <img src="docs/yolbulan1995.png" alt="yolbulan1995" width="48%" />
+  <img src="docs/cift-yonlu.png" alt="Çift yönlü dalga" width="48%" />
+</p>
+
+## Arazi ve maliyet
+
+Her adım 1 tutar (çapraz adım √2). **Çamur**a girmek 3, **su**ya girmek 5 katı tutar. A\* ve Dijkstra en ucuz yolu bulur; diğerleri araziyi dikkate almaz. Panelde yolun **adım**, **maliyet** ve **taranan** kare sayısı görünür.
+
+## Karşılaştırma
+
+**Yöntemleri karşılaştır**, bu zeminde çalışan bütün yöntemleri aynı haritada çalıştırır ve adım, maliyet, taranan kare ve süreyi yan yana gösterir. ★ en ucuz yolu, turuncu her sütunun en iyisini işaretler. Bir satıra dokunmak o yöntemi seçer.
+
+<img src="docs/karsilastirma.png" alt="Karşılaştırma tablosu" width="70%" />
+
 ## Kullanım
 
-- **Engel / Start / Finish**: arenaya dokununca ne yapılacağını seç.
-  - Engel: engel koy/kaldır (fareyle sürükleyerek çizebilirsin)
-  - Start: yeşil başlangıç direğini o kareye taşı
-  - Finish: kırmızı bitiş direğini o kareye taşı
-- **Yol bulma yöntemi**: açılır listeden seç.
-  - **A\***: Manhattan sezgiseliyle en kısa yolu garanti eder.
-  - **yolbulan1995**: her kareye puan verir. Start = 0, 0'ın boş komşularına 1, 1'lerin komşularına 2… Engellere puan verilmez; Finish puan alınca durur. Yol, Finish'ten her adımda bir küçük puana gidilerek bulunur.
-    - Çalışma dört aşamada gösterilir:
-      1. **Sayılar**: bütün puanlar dalga dalga yazılır (0, 1, 2 …).
-      2. **İterasyonlar**: her iterasyon **Hız** ayarına göre oynatılır (saniyede 40 × Hız): işlenen kare mavi çerçeveli, denenen her adım mavi bir dal olarak büyür.
-      3. **Yol**: bulunan yol Finish'ten Start'a adım adım turuncu çizilir.
-      4. **Git**: küp yolu yürür.
-    - Alttaki panel hangi aşamada olunduğunu, o anki işlemi ve ilerlemeyi gösterir; **Atla** o aşamayı geçer.
-    - **Rastgele yol** (varsayılan açık): aynı uzunlukta birden çok yol varsa her seferinde farklısını bulur. Kareler ve komşular karışık sırayla denenir, geri izlemede uygun komşulardan rastgele biri seçilir. Kapalıyken hep aynı yol bulunur. Bitişte kaç farklı en kısa yol olduğu da yazılır.
-
-    <img src="docs/yolbulan1995.png" alt="yolbulan1995 puanları" width="70%" />
-  - **üçgen**: yolbulan1995 ile aynı puanlama kuralı, ama zemin **üçgenlerden** oluşur. Her üçgenin kenar paylaştığı 3 komşusu vardır; puanlar, dallar ve yol üçgenden üçgene ilerler. Bu yöntem seçilince zemin, engeller, Start ve Finish üçgen ızgaraya göre yeniden kurulur; başka bir yönteme geçince kareye döner.
-
-    <img src="docs/ucgen.png" alt="üçgen yöntemi" width="70%" />
-- **Yolu Bul**: seçili yöntemle Start → Finish yolunu arar, taranan kareleri gösterir, sonra mavi küp yolu izler. (Boşluk/Enter da çalışır.)
-- **Rastgele**: seçili yoğunlukta, her zaman çözülebilir rastgele engeller.
-- **Temizle**: tüm engelleri siler.
-- **Engel yoğunluğu / Hız**: rastgele haritanın doluluğu ve küpün hızı.
-- **Kamera görünümleri**: Perspektif · Üstten · İzometrik · Takip (kamera küpü izler). Seçili görünüme tekrar dokunmak o açıya sıfırlar.
-- **✋ (sağ üst)**: parmakla kamera kontrolü.
-  - Açık: 1 parmak / sol tık döndürür, 2 parmak yakınlaştırır ve kaydırır (pan), sağ tık kaydırır.
-  - Kapalı: dokunmak arenayı düzenler; 2 parmak yine yakınlaştırır ve kaydırır, sağ tık döndürür.
+- **Arenaya dokununca**: Engel · Çamur · Su (sürükleyerek boyanır) · Start · Finish.
+- **Rastgele**: seçili yoğunlukta engel ve arazi (her zaman çözülebilir). **Temizle**: hepsini siler.
+- **Engel / Arazi / Hız**: rastgele haritanın doluluğu ve oynatma hızı.
+- **Kamera**: Perspektif · Üstten · İzometrik · Takip (küpü izler). Seçili görünüme tekrar dokunmak o açıya sıfırlar.
+- **✋ (sağ üst)**: açıkken 1 parmak / sol tık döndürür, 2 parmak yakınlaştırır ve kaydırır. Kapalıyken dokunmak arenayı düzenler; 2 parmak yine çalışır.
 
 ## Geliştirme
 
@@ -49,9 +75,10 @@ npm install
 npm run dev           # geliştirme sunucusu
 npm run build         # dist/ (GitHub Pages)
 npm run build:single  # dist-single/index.html — tek dosya, her yerde açılır
-npm test              # algoritma ve geometri testleri
+npm test              # algoritma, zemin ve geometri testleri
 ```
 
-Arayüz bileşenleri `src/components/ui/` altında (shadcn/ui, Tailwind v4).
-
-Yeni bir yol bulma yöntemi eklemek için `src/algorithms/` altına `(grid, walls, start, goal) => { visited, path }` imzalı bir fonksiyon yaz ve `src/algorithms/index.js` içindeki `METHODS` listesine hangi zeminde çalıştığıyla (`grid: 'square'` ya da `'tri'`) ekle. Zeminler `src/grids.js` içinde: her biri komşuları, kareyi/üçgeni dünyada nereye koyacağını ve dış hatlarını bilir. `methods.test.js` her hazır yöntemin kendi zemininde geçerli bir yol döndürdüğünü otomatik test eder.
+- `src/grids.js`: zeminler. Her zemin komşularını, hücrenin dünyadaki yerini ve dış hattını bilir.
+- `src/algorithms/`: yöntemler. Hepsi `(grid, walls, start, goal, { costs, random }) => { visited, path }`; `index.js` içindeki `METHODS` listesine eklenir. `methods.test.js` her yöntemi desteklediği her zeminde çamur ve su ile çalıştırır; yolun geçerli olduğunu ve "en kısa" iddiasını doğrular.
+- `src/replay.js`: adım kaydeden yöntemlerin aşamalı oynatması.
+- `src/components/ui/`: shadcn/ui bileşenleri (Tailwind v4).
