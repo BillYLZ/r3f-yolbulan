@@ -3,10 +3,11 @@ import assert from 'node:assert/strict'
 import { buildTimeline, viewAt } from './replay.js'
 import { yolbulan1995 } from './algorithms/yolbulan1995.js'
 import { randomWalls } from './algorithms/astar.js'
+import { squareGrid } from './grids.js'
 
 const run = () => {
-  const walls = randomWalls(10, [0, 9], [9, 0], 0.25)
-  const result = yolbulan1995(10, walls, [0, 9], [9, 0])
+  const walls = randomWalls(squareGrid(10), [0, 9], [9, 0], 0.25)
+  const result = yolbulan1995(squareGrid(10), walls, [0, 9], [9, 0])
   return { result, tl: buildTimeline(result, 4) }
 }
 

@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Edges } from '@react-three/drei'
 import * as THREE from 'three'
-import { toWorld } from '../grid.js'
 
 const S = 0.6 // cube size
 const BASE = 0
@@ -10,7 +9,8 @@ const UP = new THREE.Vector3(0, 1, 0)
 const axis = new THREE.Vector3()
 
 // A cube that tumbles through the cells in `queue` (a ref'd array of [x, y]), calling onStep on each arrival.
-export default function Runner({ queue, onStep, snap, speed = 3.5, groupRef }) {
+export default function Runner({ grid, queue, onStep, snap, speed = 3.5, groupRef }) {
+  const toWorld = grid.toWorld
   const localGroup = useRef()
   const group = groupRef || localGroup
   const cube = useRef()
@@ -20,7 +20,7 @@ export default function Runner({ queue, onStep, snap, speed = 3.5, groupRef }) {
     const [wx, wz] = toWorld(snap.cell)
     group.current.position.set(wx, 0, wz)
     from.current.set(wx, 0, wz)
-  }, [snap])
+  }, [snap, toWorld])
 
   useFrame((_, dt) => {
     const g = group.current
@@ -54,7 +54,7 @@ export default function Runner({ queue, onStep, snap, speed = 3.5, groupRef }) {
   })
 
   return (
-    <group ref={group}>
+    <group ref={group} scale={grid.cellSize}>
       <mesh ref={cube} renderOrder={2}>
         <boxGeometry args={[S, S, S]} />
         <meshBasicMaterial color="#38bdf8" transparent opacity={0.45} depthWrite={false} />

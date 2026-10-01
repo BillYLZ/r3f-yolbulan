@@ -1,4 +1,4 @@
-import { key } from './algorithms/astar.js'
+import { key } from './grids.js'
 
 /**
  * Splits a recorded run (a method result with `steps` and `scores`) into the phases shown on screen:

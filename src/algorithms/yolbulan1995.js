@@ -1,6 +1,4 @@
-import { key } from './astar.js'
-
-const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+import { key } from '../grids.js'
 
 function shuffled(list, rng) {
   const a = [...list]
@@ -12,7 +10,7 @@ function shuffled(list, rng) {
 }
 
 /**
- * yolbulan1995 — her kareye puan verilir:
+ * yolbulan1995 — her kareye (ya da üçgene) puan verilir:
  *   Start = 0, 0'ın boş komşularına 1, 1'lerin boş komşularına 2, ...
  *   Engellere puan verilmez. Finish puan alınca yayılma durur.
  * Yol: Finish'ten başlayıp her adımda puanı bir eksik olan komşuya gidilerek Start'a dönülür.
@@ -29,7 +27,7 @@ function shuffled(list, rng) {
  *     { t: 'assign', cell, score, from }  bu kareye score yazıldı; from = puanı veren komşu (denenen dal)
  *     { t: 'trace',  cell, score }        geri izleme: Finish'ten Start'a yol kuruluyor
  */
-export function yolbulan1995(size, walls, start, goal, { random = false, rng = Math.random } = {}) {
+export function yolbulan1995(grid, walls, start, goal, { random = false, rng = Math.random } = {}) {
   const goalKey = key(...goal)
   const scores = new Map([[key(...start), 0]])
   const visited = [start]
@@ -42,11 +40,8 @@ export function yolbulan1995(size, walls, start, goal, { random = false, rng = M
     for (const [x, y] of order(wave)) {
       const score = scores.get(key(x, y))
       steps.push({ t: 'expand', cell: [x, y], score })
-      for (const [dx, dy] of order(DIRS)) {
-        const nx = x + dx
-        const ny = y + dy
+      for (const [nx, ny] of order(grid.neighbors([x, y]))) {
         const nk = key(nx, ny)
-        if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue
         if (walls.has(nk) || scores.has(nk)) continue
         scores.set(nk, score + 1)
         steps.push({ t: 'assign', cell: [nx, ny], score: score + 1, from: [x, y] })
@@ -68,7 +63,7 @@ export function yolbulan1995(size, walls, start, goal, { random = false, rng = M
     if (s === 0) continue
     const [x, y] = k.split(',').map(Number)
     let w = 0
-    for (const [dx, dy] of DIRS) if (scores.get(key(x + dx, y + dy)) === s - 1) w += ways.get(key(x + dx, y + dy)) ?? 0
+    for (const [nx, ny] of grid.neighbors([x, y])) if (scores.get(key(nx, ny)) === s - 1) w += ways.get(key(nx, ny)) ?? 0
     ways.set(k, w)
   }
 
@@ -78,7 +73,7 @@ export function yolbulan1995(size, walls, start, goal, { random = false, rng = M
   let score = scores.get(goalKey)
   steps.push({ t: 'trace', cell: goal, score })
   while (score > 0) {
-    const options = DIRS.map(([dx, dy]) => [x + dx, y + dy]).filter(([px, py]) => scores.get(key(px, py)) === score - 1)
+    const options = grid.neighbors([x, y]).filter(([px, py]) => scores.get(key(px, py)) === score - 1)
     const prev = random ? options[Math.floor(rng() * options.length)] : options[0]
     ;[x, y] = prev
     score -= 1

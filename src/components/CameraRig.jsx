@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { SIZE } from '../grid.js'
+import { SIZE } from '../grids.js'
 
 const PANEL = 352 // desktop side panel width incl. margin
 const FOLLOW_OFFSET = new THREE.Vector3(0, 5, 6)

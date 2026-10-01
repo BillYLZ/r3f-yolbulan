@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Box, BrickWall, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
 import { METHODS, key, methodById, randomWalls } from './algorithms/index.js'
-import { SIZE, inBounds, toCell } from './grid.js'
+import { GRIDS } from './grids.js'
 import Runner from './components/Runner.jsx'
 import { buildTimeline, viewAt } from './replay.js'
 import CameraRig from './components/CameraRig.jsx'
@@ -16,8 +16,6 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Toggle } from '@/components/ui/toggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-const START = [1, SIZE - 2]
-const GOAL = [SIZE - 2, 1]
 const START_COLOR = '#2fd27f'
 const GOAL_COLOR = '#e8434f'
 
@@ -91,12 +89,12 @@ function IterationPanel({ view, tl, walking, summary, onSkip }) {
 }
 
 export default function App() {
-  const [start, setStart] = useState(START)
-  const [snap, setSnap] = useState({ cell: START })
-  const [goal, setGoal] = useState(GOAL)
+  const [start, setStart] = useState(GRIDS.square.start)
+  const [snap, setSnap] = useState({ cell: GRIDS.square.start })
+  const [goal, setGoal] = useState(GRIDS.square.goal)
   const [density, setDensity] = useState(25)
   const [speed, setSpeed] = useState(4)
-  const [walls, setWalls] = useState(() => randomWalls(SIZE, START, GOAL, 0.25))
+  const [walls, setWalls] = useState(() => randomWalls(GRIDS.square, GRIDS.square.start, GRIDS.square.goal, 0.25))
   const [mode, setMode] = useState('wall')
   const [visited, setVisited] = useState(new Set())
   const [path, setPath] = useState([])
@@ -106,6 +104,7 @@ export default function App() {
   const [view, setView] = useState('persp')
   const [method, setMethod] = useState('astar')
   const [randomPath, setRandomPath] = useState(true)
+  const grid = GRIDS[methodById(method).grid]
   const [resetKey, setResetKey] = useState(0)
   const [gestures, setGestures] = useState(false)
   const runnerRef = useRef()
@@ -131,8 +130,8 @@ export default function App() {
 
   const pick = (e) => {
     if (busy || gestures || e.nativeEvent.buttons !== 1) return
-    const cell = toCell(e.point.x, e.point.z)
-    if (!inBounds(cell)) return
+    const cell = grid.toCell(e.point.x, e.point.z)
+    if (!cell) return
     const k = key(...cell)
     if (e.type === 'pointermove' && (mode !== 'wall' || lastPainted.current === k)) return
     lastPainted.current = k
@@ -170,7 +169,7 @@ export default function App() {
     if (busy) return
     clearTrail()
     placeRunner(start)
-    const result = methodById(method).run(SIZE, walls, start, goal, { random: randomPath })
+    const result = methodById(method).run(grid, walls, start, goal, { random: randomPath })
     pending.current = result
     setPhase('search')
 
@@ -222,10 +221,23 @@ export default function App() {
     return `${r.scores.size} kare puanlandı · yol ${r.path.length - 1} adım${count}`
   }, [play])
 
+  // Switching to a method on another floor (squares ↔ triangles) rebuilds the arena for that grid.
+  const changeMethod = (id) => {
+    clearTrail()
+    const next = GRIDS[methodById(id).grid]
+    if (next !== grid) {
+      setStart(next.start)
+      setGoal(next.goal)
+      setWalls(randomWalls(next, next.start, next.goal, density / 100))
+      placeRunner(next.start)
+    }
+    setMethod(id)
+  }
+
   const shuffle = () => {
     if (busy) return
     clearTrail()
-    setWalls(randomWalls(SIZE, start, goal, density / 100))
+    setWalls(randomWalls(grid, start, goal, density / 100))
   }
 
   const clearWalls = () => {
@@ -263,9 +275,10 @@ export default function App() {
           <CameraRig view={view} resetKey={resetKey} gestures={gestures} followRef={runnerRef} />
           <ambientLight intensity={0.55} />
           <directionalLight position={[6, 14, 8]} intensity={1.6} />
-          <Floor onPick={pick} />
-          <Fence />
+          <Floor grid={grid} onPick={pick} />
+          <Fence grid={grid} />
           <Trail
+            grid={grid}
             visited={frame ? new Set(frame.scores.keys()) : visited}
             path={frame ? frame.traced : path}
             scores={frame?.scores}
@@ -273,10 +286,10 @@ export default function App() {
             cursor={frame?.cursor}
             branches={frame?.branches}
           />
-          <Obstacles walls={walls} />
-          <Marker cell={start} color={START_COLOR} />
-          <Marker cell={goal} color={GOAL_COLOR} pulse />
-          <Runner queue={queue} onStep={onStep} snap={snap} speed={speed} groupRef={runnerRef} />
+          <Obstacles grid={grid} walls={walls} />
+          <Marker grid={grid} cell={start} color={START_COLOR} />
+          <Marker grid={grid} cell={goal} color={GOAL_COLOR} pulse />
+          <Runner grid={grid} queue={queue} onStep={onStep} snap={snap} speed={speed} groupRef={runnerRef} />
         </Canvas>
         <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center md:top-4 md:left-88">
           <Badge variant={status.variant} className="px-3 py-1 text-sm">{status.text}</Badge>
@@ -334,7 +347,7 @@ export default function App() {
 
           <div className="flex flex-col gap-2">
             <span className="hidden text-xs font-medium text-muted-foreground md:block">Yol bulma yöntemi</span>
-            <Select value={method} onValueChange={(v) => { clearTrail(); setMethod(v) }} disabled={busy}>
+            <Select value={method} onValueChange={changeMethod} disabled={busy}>
               <SelectTrigger className="w-full *:data-[slot=select-value]:flex-1" aria-label="Yol bulma yöntemi">
                 <Cpu className="text-primary" />
                 <SelectValue />
