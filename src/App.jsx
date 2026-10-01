@@ -1,181 +1,234 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { astar, key, randomWalls } from './astar.js'
+import { SIZE, inBounds, toCell } from './grid.js'
+import Robot from './components/Robot.jsx'
+import Joystick from './components/Joystick.jsx'
+import { Fence, FinishFlag, Floor, Obstacles, StartPad, Trail } from './components/Arena.jsx'
 
-const SIZE = 20
-const OFFSET = (SIZE - 1) / 2
-const COLORS = {
-  floor: '#2a2f3a',
-  wall: '#8892a6',
-  visited: '#2f6f8f',
-  path: '#f2c14e',
-  start: '#3ecf8e',
-  goal: '#ef5b5b',
-}
+const MODES = [
+  ['wall', 'ENGEL'],
+  ['start', 'START'],
+  ['goal', 'FINISH'],
+]
+const START = [1, SIZE - 2]
+const GOAL = [SIZE - 2, 1]
 
-function Tile({ x, y, state, onPaint }) {
-  const isWall = state === 'wall'
-  const height = isWall ? 0.8 : state === 'path' ? 0.25 : 0.1
-  return (
-    <mesh
-      position={[x - OFFSET, height / 2, y - OFFSET]}
-      onPointerDown={(e) => {
-        if (e.button !== 0) return
-        e.stopPropagation()
-        onPaint(x, y, true)
-      }}
-      onPointerEnter={(e) => {
-        if (e.buttons === 1) onPaint(x, y, false)
-      }}
-    >
-      <boxGeometry args={[0.92, height, 0.92]} />
-      <meshStandardMaterial color={COLORS[state]} />
-    </mesh>
-  )
-}
-
-function Runner({ path }) {
-  const ref = useRef()
-  const t = useRef(0)
+// Places the camera far enough back that the whole arena fits the screen.
+function CameraRig() {
+  const { camera, size } = useThree()
   useEffect(() => {
-    t.current = 0
-  }, [path])
-  useFrame((_, dt) => {
-    if (!ref.current || path.length < 2) return
-    t.current = Math.min(t.current + dt * 6, path.length - 1)
-    const i = Math.floor(t.current)
-    const a = path[i]
-    const b = path[Math.min(i + 1, path.length - 1)]
-    const f = t.current - i
-    ref.current.position.set(
-      THREE.MathUtils.lerp(a[0], b[0], f) - OFFSET,
-      0.6,
-      THREE.MathUtils.lerp(a[1], b[1], f) - OFFSET,
-    )
-  })
-  if (path.length < 2) return null
-  return (
-    <mesh ref={ref} position={[path[0][0] - OFFSET, 0.6, path[0][1] - OFFSET]}>
-      <sphereGeometry args={[0.3, 24, 24]} />
-      <meshStandardMaterial color="#ffffff" emissive="#f2c14e" emissiveIntensity={0.6} />
-    </mesh>
-  )
+    const v = THREE.MathUtils.degToRad(camera.fov) / 2
+    const h = Math.atan(Math.tan(v) * (size.width / size.height))
+    const dist = Math.max((SIZE * 0.55) / Math.tan(h), (SIZE * 0.55) / Math.tan(v))
+    camera.position.set(0, dist * 0.68, dist * 0.73)
+    camera.lookAt(0, 0, 0)
+  }, [camera, size])
+  return null
 }
 
 export default function App() {
-  const [start, setStart] = useState([1, 1])
-  const [goal, setGoal] = useState([SIZE - 2, SIZE - 2])
-  const [walls, setWalls] = useState(() => randomWalls(SIZE, [1, 1], [SIZE - 2, SIZE - 2]))
-  const [mode, setMode] = useState('wall')
+  const [robot, setRobot] = useState(START)
+  const [snap, setSnap] = useState({ cell: START })
+  const [goal, setGoal] = useState(GOAL)
+  const [walls, setWalls] = useState(() => randomWalls(SIZE, START, GOAL, 0.25))
+  const [modeIdx, setModeIdx] = useState(0)
   const [visited, setVisited] = useState(new Set())
   const [path, setPath] = useState([])
-  const [status, setStatus] = useState('Hazır')
+  const [phase, setPhase] = useState('idle') // idle | search | walk
+  const [status, setStatus] = useState('START → FINISH')
+
+  const queue = useRef([])
+  const dir = useRef(null)
   const timer = useRef(null)
   const paintValue = useRef(true)
+  const lastPainted = useRef(null)
+  const mode = MODES[modeIdx][0]
+  const busy = phase !== 'idle'
 
-  const stop = () => clearInterval(timer.current)
-  useEffect(() => stop, [])
-
-  const reset = () => {
-    stop()
+  const clearTrail = () => {
     setVisited(new Set())
     setPath([])
-    setStatus('Hazır')
   }
 
-  const paint = (x, y, first) => {
-    const k = key(x, y)
-    reset()
+  const placeRobot = (cell) => {
+    queue.current = []
+    setRobot(cell)
+    setSnap({ cell })
+  }
+
+  const pick = (e) => {
+    if (busy || e.nativeEvent.buttons !== 1) return
+    const cell = toCell(e.point.x, e.point.z)
+    if (!inBounds(cell)) return
+    const k = key(...cell)
+    if (e.type === 'pointermove' && (mode !== 'wall' || lastPainted.current === k)) return
+    lastPainted.current = k
+    e.stopPropagation()
+    const occupied = k === key(...robot) || k === key(...goal)
+    clearTrail()
     if (mode === 'start') {
-      if (!walls.has(k) && k !== key(...goal)) setStart([x, y])
-      return
+      if (!walls.has(k) && k !== key(...goal)) placeRobot(cell)
+    } else if (mode === 'goal') {
+      if (!walls.has(k) && k !== key(...robot)) setGoal(cell)
+    } else if (!occupied) {
+      if (e.type === 'pointerdown') paintValue.current = !walls.has(k)
+      setWalls((prev) => {
+        const next = new Set(prev)
+        paintValue.current ? next.add(k) : next.delete(k)
+        return next
+      })
     }
-    if (mode === 'goal') {
-      if (!walls.has(k) && k !== key(...start)) setGoal([x, y])
-      return
-    }
-    if (k === key(...start) || k === key(...goal)) return
-    if (first) paintValue.current = !walls.has(k)
-    setWalls((prev) => {
-      const next = new Set(prev)
-      paintValue.current ? next.add(k) : next.delete(k)
-      return next
-    })
+    setStatus('START → FINISH')
   }
 
-  const run = () => {
-    reset()
-    const result = astar(SIZE, walls, start, goal)
+  const findPath = () => {
+    if (busy) return
+    clearTrail()
+    queue.current = []
+    const result = astar(SIZE, walls, robot, goal)
+    setPhase('search')
+    setStatus('ARANIYOR…')
     let i = 0
-    setStatus('Aranıyor…')
     timer.current = setInterval(() => {
-      i += 3
+      i += 4
       setVisited(new Set(result.visited.slice(0, i).map((p) => key(...p))))
-      if (i >= result.visited.length) {
-        stop()
-        setPath(result.path)
-        setStatus(
-          result.path.length
-            ? `Yol bulundu: ${result.path.length - 1} adım, ${result.visited.length} kare tarandı`
-            : 'Yol yok!',
-        )
+      if (i < result.visited.length) return
+      clearInterval(timer.current)
+      if (!result.path.length) {
+        setPhase('idle')
+        setStatus('YOL YOK!')
+        return
       }
+      setPath(result.path)
+      setStatus(`YOL: ${result.path.length - 1} ADIM`)
+      if (result.path.length > 1) {
+        queue.current = result.path.slice(1)
+        setPhase('walk')
+      } else setPhase('idle')
     }, 16)
   }
 
-  const pathSet = useMemo(() => new Set(path.map((p) => key(...p))), [path])
-
-  const stateOf = (x, y) => {
-    const k = key(x, y)
-    if (k === key(...start)) return 'start'
-    if (k === key(...goal)) return 'goal'
-    if (walls.has(k)) return 'wall'
-    if (pathSet.has(k)) return 'path'
-    if (visited.has(k)) return 'visited'
-    return 'floor'
+  const shuffle = () => {
+    if (busy) return
+    clearTrail()
+    setWalls(randomWalls(SIZE, robot, goal, 0.25))
+    setStatus('START → FINISH')
   }
 
-  const tiles = []
-  for (let x = 0; x < SIZE; x++)
-    for (let y = 0; y < SIZE; y++)
-      tiles.push(<Tile key={key(x, y)} x={x} y={y} state={stateOf(x, y)} onPaint={paint} />)
+  const clearWalls = () => {
+    if (busy) return
+    clearTrail()
+    setWalls(new Set())
+  }
+
+  const onStep = useCallback(
+    (cell) => {
+      setRobot(cell)
+      if (queue.current.length === 0 && cell[0] === goal[0] && cell[1] === goal[1]) {
+        setPhase('idle')
+        setStatus('FINISH! 🏁')
+      } else if (queue.current.length === 0) setPhase('idle')
+    },
+    [goal],
+  )
+
+  // Manual driving: joystick / keyboard step the robot one free cell at a time.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!dir.current || phase !== 'idle' || queue.current.length) return
+      const next = [robot[0] + dir.current[0], robot[1] + dir.current[1]]
+      if (!inBounds(next) || walls.has(key(...next))) return
+      setVisited(new Set())
+      setPath([])
+      queue.current.push(next)
+    }, 50)
+    return () => clearInterval(id)
+  }, [robot, walls, phase])
+
+  useEffect(() => {
+    const keys = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] }
+    const down = (e) => {
+      if (keys[e.key]) {
+        dir.current = keys[e.key]
+        e.preventDefault()
+      } else if (e.key === ' ' || e.key === 'Enter') findPath()
+    }
+    const up = (e) => keys[e.key] && (dir.current = null)
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+    }
+  })
+
+  useEffect(() => () => clearInterval(timer.current), [])
 
   return (
     <>
-      <div className="panel">
-        <h1>Yol Bulan</h1>
-        <div className="modes">
-          {[
-            ['wall', 'Duvar'],
-            ['start', 'Başlangıç'],
-            ['goal', 'Hedef'],
-          ].map(([m, label]) => (
-            <button key={m} className={mode === m ? 'active' : ''} onClick={() => setMode(m)}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="actions">
-          <button className="primary" onClick={run}>Yolu Bul (A*)</button>
-          <button onClick={() => { reset(); setWalls(randomWalls(SIZE, start, goal)) }}>Rastgele</button>
-          <button onClick={() => { reset(); setWalls(new Set()) }}>Temizle</button>
-        </div>
-        <p className="status">{status}</p>
-        <p className="hint">Sol tık: çiz · Sağ tık sürükle: döndür · Tekerlek: yakınlaştır</p>
-      </div>
-      <Canvas camera={{ position: [0, 24, 14], fov: 45 }} onContextMenu={(e) => e.preventDefault()}>
-        <color attach="background" args={['#14171f']} />
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 20, 10]} intensity={1.2} />
-        {tiles}
-        <Runner path={path} />
+      <Canvas shadows camera={{ fov: 45 }} onContextMenu={(e) => e.preventDefault()}>
+        <color attach="background" args={['#0b0b10']} />
+        <fog attach="fog" args={['#0b0b10', 30, 90]} />
+        <CameraRig />
+        <ambientLight intensity={0.55} />
+        <directionalLight
+          position={[6, 14, 8]}
+          intensity={1.6}
+          castShadow
+          shadow-mapSize={[2048, 2048]}
+          shadow-camera-left={-9}
+          shadow-camera-right={9}
+          shadow-camera-top={9}
+          shadow-camera-bottom={-9}
+        />
+        <Floor onPick={pick} />
+        <Fence />
+        <Trail visited={visited} path={path} />
+        <Obstacles walls={walls} />
+        <StartPad cell={robot} />
+        <FinishFlag cell={goal} />
+        <Robot queue={queue} onStep={onStep} snap={snap} />
         <OrbitControls
+          enablePan={false}
           mouseButtons={{ RIGHT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY }}
-          maxPolarAngle={Math.PI / 2.2}
+          touches={{ TWO: THREE.TOUCH.DOLLY_ROTATE }}
+          maxPolarAngle={Math.PI / 2.3}
+          minDistance={6}
+          maxDistance={70}
         />
       </Canvas>
+
+      <div className="hud">
+        <div className="top">
+          <div className="frame">
+            <span className="tag">MOD</span>
+            <button className="big" onClick={() => setModeIdx((i) => (i + 1) % MODES.length)}>
+              {MODES[modeIdx][1]}
+            </button>
+          </div>
+          <div className="frame right">
+            <span className="tag orange">HARİTA</span>
+            <button className="big orange" onClick={clearWalls}>TEMİZLE</button>
+          </div>
+        </div>
+        <div className="status">{status}</div>
+        <div className="bottom">
+          <Joystick onDir={(d) => (dir.current = d)} />
+          <div className="pad">
+            <div className="btn-wrap b">
+              <button className="round" onClick={shuffle}>B</button>
+              <span>RASTGELE</span>
+            </div>
+            <div className="btn-wrap a">
+              <button className="round" onClick={findPath}>A</button>
+              <span>YOLU BUL</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </>
   )
 }
