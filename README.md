@@ -43,6 +43,24 @@ Zemindeki turuncu çizgiler sahayı **büyük karelere** böler (her biri 7 × 7
 | **Sağ el kuralı (robot)** | Hedefe yürür; engele çarpınca sağ elini duvardan ayırmadan dolaşır | ✗ bazen bulamaz |
 | **Rastgele yürüyüş** | Rastgele dolaşır; küp döngüleri silinmiş yolu yürür | ✗ bazen bulamaz |
 
+### Her açıya giden yöntemler
+
+Bu dördü kareden kareye değil, sahada her yöne gider; yolları turuncu bir çizgidir ve küp üzerinde kayar. Maliyetleri yolun uzunluğudur (bir adım = iki komşu hücre merkezi arası); çamur ve suyu dikkate almazlar.
+
+| Yöntem | Ne yapar | Ekranda |
+| --- | --- | --- |
+| **Theta\*** | A\* gibi arar, ama bir hücre engelsiz gördüğü uzak bir hücreye doğrudan bağlanır | birkaç düz çizgi; hücre-hücre en kısa yoldan hiçbir zaman uzun değil |
+| **Potansiyel alan** | Finish çeker, engeller ve kenarlar iter; küp kuvvetlerin toplamı yönünde kayar. Bir çukura takılırsa birkaç kez rastgele sarsılarak çıkmayı dener | her hücrede kuvvetin yönünü gösteren gri oklar; takılırsa iz kırmızı ve "Çukura takıldı" |
+| **RRT** | Start'tan rastgele noktalara doğru kısa dallar uzatan ağaç; bir dal Finish'i görünce durur | mavi ağaç büyür; yol zikzaklıdır |
+| **RRT\*** | RRT, ama büyümeye devam eder: her yeni dal en ucuz komşuya bağlanır ve komşularını kendi üzerinden yeniden bağlar | ağaç düzenlenir, yol kısalır |
+
+**Yumuşat** bunlarla da çalışır (özellikle RRT'nin zikzak yolunu düzeltir).
+
+<p>
+  <img src="docs/rrt.png" alt="RRT* ağacı" width="48%" />
+  <img src="docs/potansiyel.png" alt="Potansiyel alan" width="48%" />
+</p>
+
 **yolbulan1995** ve **Çift yönlü dalga** dört aşamada oynatılır:
 1. **Sayılar**: bütün puanlar dalga dalga yazılır (çift yönlüde Start tarafı turuncu, Finish tarafı mor).
 2. **İterasyonlar**: her iterasyon **Hız** ayarına göre (saniyede 80 × Hız) oynatılır; işlenen kare mavi çerçeveli, denenen her adım bir dal olarak büyür.

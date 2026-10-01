@@ -288,15 +288,70 @@ export function Marker({ grid, cell, color, pulse }) {
   )
 }
 
-// Smoothing overlay: the pulled straight path (dashed white) and the curve the cube follows (light blue).
-export function SmoothLines({ grid, anchors, points }) {
-  const pulled = anchors.map((c) => {
-    const [x, z] = grid.toWorld(c)
-    return [x, 0.07, z]
-  })
+const segments = (pairs, y) => {
+  const pts = new Float32Array(pairs.length * 6)
+  pairs.forEach(([a, b], i) => pts.set([a[0], y, a[1], b[0], y, b[1]], i * 6))
+  return new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(pts, 3))
+}
+
+/**
+ * Layers for the any-angle methods, revealed as `f` goes from 0 to 1:
+ *   tree  (RRT, RRT*) — branches in the order they grew
+ *   field (potential) — one arrow per free cell, pointing where the forces push
+ *   route — the cube's track; drawn as it grows for the potential field, at the end for the others.
+ *   A track that got stuck is drawn red.
+ */
+export function AnyAngleLayer({ grid, result, f }) {
+  const treeGeo = useMemo(() => {
+    if (!result.tree) return null
+    const n = Math.ceil(result.tree.length * f)
+    return segments(result.tree.slice(0, n), 0.03)
+  }, [result, f])
+  const fieldGeo = useMemo(() => {
+    if (!result.field) return null
+    const L = 0.34 * grid.cellSize
+    const pairs = []
+    for (const [x, z, dx, dz] of result.field) {
+      const tip = [x + dx * L, z + dz * L]
+      const back = [x - dx * L * 0.6, z - dz * L * 0.6]
+      pairs.push([back, tip])
+      for (const turn of [2.6, -2.6]) {
+        const a = Math.atan2(dz, dx) + turn
+        pairs.push([tip, [tip[0] + Math.cos(a) * L * 0.35, tip[1] + Math.sin(a) * L * 0.35]])
+      }
+    }
+    return segments(pairs, 0.02)
+  }, [result, grid])
+  useEffect(() => () => treeGeo?.dispose(), [treeGeo])
+  useEffect(() => () => fieldGeo?.dispose(), [fieldGeo])
+
+  const track = result.points ?? result.stuck
+  const growing = !!result.field // the potential field's track is its search, so it grows with f
+  const shown = track && (growing ? track.slice(0, Math.max(2, Math.ceil(track.length * f))) : f >= 1 ? track : null)
   return (
     <>
-      <Line points={pulled} color="#ffffff" lineWidth={1.5} dashed dashSize={0.25} gapSize={0.15} transparent opacity={0.75} />
+      {fieldGeo && (
+        <lineSegments geometry={fieldGeo}>
+          <lineBasicMaterial color="#94a3b8" transparent opacity={0.5} />
+        </lineSegments>
+      )}
+      {treeGeo && (
+        <lineSegments geometry={treeGeo}>
+          <lineBasicMaterial color="#38bdf8" transparent opacity={0.55} />
+        </lineSegments>
+      )}
+      {shown && shown.length > 1 && (
+        <Line points={shown.map(([x, z]) => [x, 0.06, z])} color={result.points ? ORANGE : '#f87171'} lineWidth={4} />
+      )}
+    </>
+  )
+}
+
+// Smoothing overlay: the pulled straight path (dashed white) and the curve the cube follows (light blue).
+export function SmoothLines({ pulled, points }) {
+  return (
+    <>
+      <Line points={pulled.map(([x, z]) => [x, 0.07, z])} color="#ffffff" lineWidth={1.5} dashed dashSize={0.25} gapSize={0.15} transparent opacity={0.75} />
       <Line points={points.map(([x, z]) => [x, 0.09, z])} color="#7dd3fc" lineWidth={4} />
     </>
   )

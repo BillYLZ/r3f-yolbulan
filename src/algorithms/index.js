@@ -4,6 +4,7 @@ import { bidirectional } from './bidirectional.js'
 import { dfs } from './dfs.js'
 import { jps } from './jps.js'
 import { randomWalk, wallFollower } from './walkers.js'
+import { potentialField, rrt, rrtStar, thetaStar } from './anyangle.js'
 
 export { key, randomTerrain, randomWalls } from './astar.js'
 export { pathCost } from './cost.js'
@@ -16,6 +17,7 @@ export { pathCost } from './cost.js'
  *   terrain:    takes mud / water costs into account
  *   randomizable: accepts { random: true } for a different result among equals each run
  *   alwaysFinds: finds a path whenever one exists
+ *   anyAngle:   moves in any direction, not cell to cell; returns `points` (world [x, z]) and `cost`
  */
 export const METHODS = [
   {
@@ -62,6 +64,43 @@ export const METHODS = [
     grids: ['diag'],
     shortest: 'steps-diag',
     alwaysFinds: true,
+  },
+  {
+    id: 'theta',
+    name: 'Theta*',
+    description: 'Her açıya giden A*: engelsiz gördüğü noktaya doğrudan düz çizgiyle gider.',
+    run: thetaStar,
+    shortest: false,
+    alwaysFinds: true,
+    anyAngle: true,
+  },
+  {
+    id: 'potential',
+    name: 'Potansiyel alan',
+    description: 'Finish çeker, engeller iter; küp kuvvetle kayar. Çukura takılabilir.',
+    run: potentialField,
+    shortest: false,
+    randomizable: true,
+    alwaysFinds: false,
+    anyAngle: true,
+  },
+  {
+    id: 'rrt',
+    name: 'RRT',
+    description: "Start'tan rastgele yönlere dallar uzatan ağaç; Finish'e değince durur.",
+    run: rrt,
+    shortest: false,
+    alwaysFinds: false,
+    anyAngle: true,
+  },
+  {
+    id: 'rrtstar',
+    name: 'RRT*',
+    description: 'RRT, ama büyümeye devam edip dalları yeniden bağlar; yol kısalır.',
+    run: rrtStar,
+    shortest: false,
+    alwaysFinds: false,
+    anyAngle: true,
   },
   {
     id: 'greedy',

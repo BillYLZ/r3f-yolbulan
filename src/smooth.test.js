@@ -11,8 +11,8 @@ const close = (a, b) => Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 
 test('an open floor pulls tight to a single straight line', () => {
   const g = squareGrid(10)
   const path = yolbulan1995(g, new Set(), [0, 9], [9, 0]).path
-  const { anchors, points } = smoothPath(g, new Set(), null, path)
-  assert.deepEqual(anchors, [[0, 9], [9, 0]])
+  const { pulled, points } = smoothPath(g, new Set(), null, path)
+  assert.deepEqual(pulled, [g.toWorld([0, 9]), g.toWorld([9, 0])])
   assert.ok(Math.abs(curveLength(points) - Math.hypot(9, 9)) < 1e-6)
 })
 
@@ -22,7 +22,8 @@ for (const grid of Object.values(GRIDS)) {
       const walls = randomWalls(grid, grid.start, grid.goal, 0.25)
       const costs = randomTerrain(grid, walls, grid.start, grid.goal, 0.1)
       const path = (i % 2 ? dfs : yolbulan1995)(grid, walls, grid.start, grid.goal).path
-      const { anchors, points } = smoothPath(grid, walls, costs, path)
+      const { pulled, points } = smoothPath(grid, walls, costs, path)
+      const anchors = pulled.map((p) => grid.toCell(...p))
       assert.ok(close(points[0], grid.toWorld(grid.start)), 'start')
       assert.ok(close(points.at(-1), grid.toWorld(grid.goal)), 'end')
       for (const p of points) {
@@ -37,9 +38,9 @@ for (const grid of Object.values(GRIDS)) {
       }
       // pulling never lengthens the path; the curve only rounds its corners
       const zigzag = curveLength(path.map((c) => grid.toWorld(c)))
-      const pulled = curveLength(anchors.map((c) => grid.toWorld(c)))
-      assert.ok(pulled <= zigzag + 1e-6, `pulled ${pulled} > zigzag ${zigzag}`)
-      assert.ok(curveLength(points) <= pulled * 1.15, `curve ${curveLength(points)} vs pulled ${pulled}`)
+      const pulledLength = curveLength(pulled)
+      assert.ok(pulledLength <= zigzag + 1e-6, `pulled ${pulledLength} > zigzag ${zigzag}`)
+      assert.ok(curveLength(points) <= pulledLength * 1.15, `curve ${curveLength(points)} vs pulled ${pulledLength}`)
     }
   })
 }

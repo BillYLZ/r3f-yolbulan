@@ -5,9 +5,9 @@ import { METHODS, key, methodById, pathCost, randomTerrain, randomWalls, support
 import { ARENAS, GRIDS, makeGrids } from './grids.js'
 import Runner from './components/Runner.jsx'
 import { buildTimeline, viewAt } from './replay.js'
-import { curveLength, smoothPath } from './smooth.js'
+import { curveLength, smoothPath, smoothPoints } from './smooth.js'
 import CameraRig from './components/CameraRig.jsx'
-import { Fence, Floor, Marker, Obstacles, SmoothLines, Terrain, Trail } from './components/Arena.jsx'
+import { AnyAngleLayer, Fence, Floor, Marker, Obstacles, SmoothLines, Terrain, Trail } from './components/Arena.jsx'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -169,6 +169,7 @@ export default function App() {
   const [visited, setVisited] = useState(new Set())
   const [path, setPath] = useState([])
   const [play, setPlay] = useState(null) // step-by-step replay for methods that record steps
+  const [grow, setGrow] = useState(null) // any-angle methods: { result, f } with f 0 → 1 as their search is revealed
   const [phase, setPhase] = useState('idle') // idle | search | walk | done | blocked
   const [stats, setStats] = useState(null)
   const [view, setView] = useState('persp')
@@ -192,6 +193,7 @@ export default function App() {
     setVisited(new Set())
     setPath([])
     setPlay(null)
+    setGrow(null)
     setStats(null)
     setPhase('idle')
   }
@@ -242,16 +244,23 @@ export default function App() {
 
   const finishSearch = (result) => {
     clearInterval(timer.current)
+    if (result.tree || result.field || result.points) setGrow({ result, f: 1 })
     setStats({
       steps: result.path.length ? result.path.length - 1 : null,
-      cost: result.path.length ? pathCost(grid, result.path, terrain) : null,
+      cost: result.path.length ? (result.cost ?? pathCost(grid, result.path, terrain)) : null,
       scanned: new Set(result.visited.map((c) => key(...c))).size,
     })
-    if (!result.path.length) return setPhase('blocked')
+    if (!result.path.length) return setPhase(result.stuck ? 'stuck' : 'blocked')
     setPath(result.path)
-    queue.current = smooth
-      ? smoothPath(grid, walls, terrain, result.path).points.slice(1).map((w) => ({ w }))
-      : result.path.slice(1)
+    // any-angle methods hand over world points; cell methods a cell path. Both may be smoothed.
+    if (result.points) {
+      const pts = smooth ? smoothPoints(grid, walls, terrain, result.points).points : result.points
+      queue.current = pts.slice(1).map((w) => ({ w }))
+    } else {
+      queue.current = smooth
+        ? smoothPath(grid, walls, terrain, result.path).points.slice(1).map((w) => ({ w }))
+        : result.path.slice(1)
+    }
     setPhase(queue.current.length ? 'walk' : 'done')
   }
   const pending = useRef(null)
@@ -291,13 +300,17 @@ export default function App() {
       return
     }
 
-    // Other methods: reveal the scanned cells in about two seconds at most.
-    const perTick = Math.max(4, Math.ceil(result.visited.length / 120))
-    let i = 0
+    // Other methods: reveal the search in about two seconds — scanned cells, or for RRT the growing tree and for
+    // the potential field the cube's track (those two draw lines instead of cell tiles).
+    const lines = result.tree || result.field
+    const ticks = 120
+    let t = 0
     timer.current = setInterval(() => {
-      i = Math.min(i + perTick, result.visited.length)
-      setVisited(new Set(result.visited.slice(0, i).map((p) => key(...p))))
-      if (i >= result.visited.length) finishSearch(result)
+      t += 1
+      const f = Math.min(t / ticks, 1)
+      if (lines) setGrow({ result, f })
+      else setVisited(new Set(result.visited.slice(0, Math.ceil(result.visited.length * f)).map((p) => key(...p))))
+      if (f >= 1) finishSearch(result)
     }, 16)
   }
 
@@ -378,7 +391,7 @@ export default function App() {
         name: m.name,
         found,
         steps: found ? r.path.length - 1 : null,
-        cost: found ? pathCost(grid, r.path, terrain) : null,
+        cost: found ? (r.cost ?? pathCost(grid, r.path, terrain)) : null,
         scanned: new Set(r.visited.map((c) => key(...c))).size,
         ms,
       }
@@ -412,10 +425,12 @@ export default function App() {
   const fogScale = Math.max(grid.width, grid.depth) / 14
 
   // Smoothing of the found path, shown once the search is over (and live when the switch is flipped).
-  const smoothed = useMemo(
-    () => (smooth && path.length > 2 && phase !== 'search' ? smoothPath(grid, walls, terrain, path) : null),
-    [smooth, path, phase, grid, walls, terrain],
-  )
+  const anyPoints = grow?.result.points
+  const smoothed = useMemo(() => {
+    if (!smooth || phase === 'search') return null
+    if (anyPoints) return anyPoints.length > 2 ? smoothPoints(grid, walls, terrain, anyPoints) : null
+    return path.length > 2 ? smoothPath(grid, walls, terrain, path) : null
+  }, [smooth, path, anyPoints, phase, grid, walls, terrain])
 
   const status = {
     idle: { text: 'Hazır', variant: 'secondary' },
@@ -423,6 +438,7 @@ export default function App() {
     walk: { text: 'Yol izleniyor', variant: 'default' },
     done: { text: 'Finish! 🏁', variant: 'default' },
     blocked: { text: 'Yol yok', variant: 'destructive' },
+    stuck: { text: 'Çukura takıldı', variant: 'destructive' },
     stopped: { text: 'Durduruldu', variant: 'outline' },
   }[phase]
 
@@ -441,7 +457,7 @@ export default function App() {
           <Trail
             grid={grid}
             visited={frame ? new Set(frame.scores.keys()) : visited}
-            path={frame ? frame.traced : path}
+            path={frame ? frame.traced : grow ? [] : path}
             scores={frame?.scores}
             sides={frame?.sides}
             fresh={frame?.fresh}
@@ -449,7 +465,8 @@ export default function App() {
             branches={frame?.branches}
           />
           <Obstacles grid={grid} walls={walls} />
-          {smoothed && <SmoothLines grid={grid} anchors={smoothed.anchors} points={smoothed.points} />}
+          {grow && <AnyAngleLayer grid={grid} result={grow.result} f={grow.f} />}
+          {smoothed && <SmoothLines pulled={smoothed.pulled} points={smoothed.points} />}
           <Marker grid={grid} cell={start} color={START_COLOR} />
           <Marker grid={grid} cell={goal} color={GOAL_COLOR} pulse />
           <Runner grid={grid} queue={queue} onStep={onStep} snap={snap} speed={speed * 2} groupRef={runnerRef} />
@@ -639,7 +656,7 @@ export default function App() {
               Yumuşat: {smooth ? 'açık' : 'kapalı'}
               <span className="ml-auto truncate text-muted-foreground">
                 {smoothed
-                  ? `eğri ${curveLength(smoothed.points).toFixed(1)} · zikzak ${curveLength(path.map((c) => grid.toWorld(c))).toFixed(1)}`
+                  ? `eğri ${curveLength(smoothed.points).toFixed(1)} · önce ${curveLength(anyPoints ?? path.map((c) => grid.toWorld(c))).toFixed(1)}`
                   : 'yolu eğriye çevirir'}
               </span>
             </Toggle>
