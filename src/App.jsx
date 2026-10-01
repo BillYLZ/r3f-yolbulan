@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { BarChart3, Box, BrickWall, Footprints, Hexagon, MoveDiagonal, Square, Triangle, Waves, X, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
+import { BarChart3, LayoutGrid, Box, BrickWall, Footprints, Hexagon, MoveDiagonal, Square, Triangle, Waves, X, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
 import { METHODS, key, methodById, pathCost, randomTerrain, randomWalls, supports } from './algorithms/index.js'
-import { GRIDS } from './grids.js'
+import { ARENAS, GRIDS, makeGrids } from './grids.js'
 import Runner from './components/Runner.jsx'
 import { buildTimeline, viewAt } from './replay.js'
 import CameraRig from './components/CameraRig.jsx'
@@ -171,7 +171,9 @@ export default function App() {
   const [view, setView] = useState('persp')
   const [method, setMethod] = useState('astar')
   const [randomPath, setRandomPath] = useState(true)
-  const grid = GRIDS[gridId]
+  const [arena, setArena] = useState('4') // number of big squares
+  const grids = useMemo(() => makeGrids(...ARENAS[arena]), [arena])
+  const grid = grids[gridId]
   const [resetKey, setResetKey] = useState(0)
   const [gestures, setGestures] = useState(false)
   const runnerRef = useRef()
@@ -313,20 +315,29 @@ export default function App() {
     setMethod(id)
   }
 
-  // A new floor rebuilds the arena: start, finish, walls and terrain for that grid.
-  const changeGrid = (id) => {
-    if (!id || busy) return
+  // A new floor or arena size rebuilds the arena: start, finish, walls and terrain for that grid.
+  const rebuild = (next) => {
     clearTrail()
     setCompare(null)
-    const next = GRIDS[id]
     const w = randomWalls(next, next.start, next.goal, density / 100)
-    setGridId(id)
     setStart(next.start)
     setGoal(next.goal)
     setWalls(w)
     setTerrain(randomTerrain(next, w, next.start, next.goal, terrainDensity / 100))
     placeRunner(next.start)
+  }
+
+  const changeGrid = (id) => {
+    if (!id || busy) return
+    setGridId(id)
+    rebuild(grids[id])
     if (!supports(methodById(method), id)) setMethod('astar')
+  }
+
+  const changeArena = (n) => {
+    if (!n || busy) return
+    setArena(n)
+    rebuild(makeGrids(...ARENAS[n])[gridId])
   }
 
   const shuffle = () => {
@@ -379,6 +390,8 @@ export default function App() {
 
   useEffect(() => () => clearInterval(timer.current), [])
 
+  const fogScale = Math.max(grid.width, grid.depth) / 14
+
   const status = {
     idle: { text: 'Hazır', variant: 'secondary' },
     search: { text: 'Aranıyor…', variant: 'outline' },
@@ -392,8 +405,8 @@ export default function App() {
       <div className="relative min-h-0 flex-1 md:absolute md:inset-0">
         <Canvas camera={{ fov: 45 }} onContextMenu={(e) => e.preventDefault()} style={{ touchAction: 'none' }}>
           <color attach="background" args={['#0b0b10']} />
-          <fog attach="fog" args={['#0b0b10', 30, 90]} />
-          <CameraRig view={view} resetKey={resetKey} gestures={gestures} followRef={runnerRef} />
+          <fog attach="fog" args={['#0b0b10', 30 * fogScale, 90 * fogScale]} />
+          <CameraRig grid={grid} view={view} resetKey={resetKey} gestures={gestures} followRef={runnerRef} />
           <ambientLight intensity={0.55} />
           <directionalLight position={[6, 14, 8]} intensity={1.6} />
           <Floor grid={grid} onPick={pick} />
@@ -501,6 +514,18 @@ export default function App() {
                 <Hexagon /> Altıgen
               </ToggleGroupItem>
             </ToggleGroup>
+            <div className="flex items-center gap-2">
+              <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground" title="Büyük kare sayısı (her biri 7 × 7)">
+                <LayoutGrid className="size-4" /> Saha
+              </span>
+              <ToggleGroup type="single" variant="outline" size="sm" value={arena} onValueChange={changeArena} disabled={busy} className="w-full">
+                {Object.entries(ARENAS).map(([n, [bx, by]]) => (
+                  <ToggleGroupItem key={n} value={n} aria-label={`${n} büyük kare (${bx} × ${by})`} title={`${bx} × ${by} büyük kare`} className="text-xs tabular-nums">
+                    {n}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">

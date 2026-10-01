@@ -1,7 +1,8 @@
 // Floor grids. A cell is [x, y]; each grid knows its neighbours, where a cell sits in the world (x, z)
 // and its outline, so algorithms and rendering work the same on squares and triangles.
 
-export const SIZE = 14 // arena is about SIZE × SIZE world units
+export const BLOCK = 7 // one big square (the orange sections on the floor) is BLOCK × BLOCK small squares
+export const SIZE = 2 * BLOCK // default arena: 2 × 2 big squares
 
 export const key = (x, y) => `${x},${y}`
 
@@ -15,33 +16,34 @@ function pointInPolygon([px, pz], poly) {
   return inside
 }
 
-export function squareGrid(size = SIZE) {
-  const offset = (size - 1) / 2
-  const inBounds = ([x, y]) => x >= 0 && y >= 0 && x < size && y < size
+export function squareGrid(cols = SIZE, rows = cols) {
+  const ox = (cols - 1) / 2
+  const oy = (rows - 1) / 2
+  const inBounds = ([x, y]) => x >= 0 && y >= 0 && x < cols && y < rows
   return {
     id: 'square',
     label: 'Kare',
-    cols: size,
-    rows: size,
-    width: size,
-    depth: size,
+    cols,
+    rows,
+    width: cols,
+    depth: rows,
     cellSize: 1,
     inBounds,
     neighbors: ([x, y]) => [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]].filter(inBounds),
     heuristic: ([ax, ay], [bx, by]) => Math.abs(ax - bx) + Math.abs(ay - by),
     stepCost: () => 1,
-    toWorld: ([x, y]) => [x - offset, y - offset],
+    toWorld: ([x, y]) => [x - ox, y - oy],
     toCell(wx, wz) {
-      const c = [Math.round(wx + offset), Math.round(wz + offset)]
+      const c = [Math.round(wx + ox), Math.round(wz + oy)]
       return inBounds(c) ? c : null
     },
     polygon([x, y]) {
-      const cx = x - offset
-      const cz = y - offset
+      const cx = x - ox
+      const cz = y - oy
       return [[cx - 0.5, cz - 0.5], [cx + 0.5, cz - 0.5], [cx + 0.5, cz + 0.5], [cx - 0.5, cz + 0.5]]
     },
-    start: [1, size - 2],
-    goal: [size - 2, 1],
+    start: [1, rows - 2],
+    goal: [cols - 2, 1],
   }
 }
 
@@ -50,7 +52,7 @@ export function squareGrid(size = SIZE) {
  * towards it otherwise. Neighbours share an edge: left, right, and the one across the flat side.
  */
 export function triGrid(cols = 23, rows = SIZE) {
-  const s = (2 * SIZE) / (cols + 1) // side length, so the arena is SIZE wide
+  const s = (2 * SIZE) / 24 // side length: 23 triangles span SIZE (two big squares)
   const h = (s * Math.sqrt(3)) / 2
   const W = ((cols + 1) * s) / 2
   const D = rows * h
@@ -103,8 +105,8 @@ export function triGrid(cols = 23, rows = SIZE) {
  * squares it squeezes between are free, so the cube never cuts a wall's corner. Pass `walls` to neighbors()
  * to apply that rule.
  */
-export function diagGrid(size = SIZE) {
-  const base = squareGrid(size)
+export function diagGrid(cols = SIZE, rows = cols) {
+  const base = squareGrid(cols, rows)
   const free = (walls, c) => base.inBounds(c) && !walls?.has(key(...c))
   return {
     ...base,
@@ -129,7 +131,7 @@ export function diagGrid(size = SIZE) {
 
 /** Pointy-top hexagons in offset rows (odd rows shifted right by half a hexagon). 6 neighbours each. */
 export function hexGrid(cols = 13, rows = 15) {
-  const w = SIZE / (cols + 0.5) // hexagon width (flat side to flat side)
+  const w = SIZE / 13.5 // hexagon width (flat side to flat side): 13 hexagons span SIZE
   const R = w / Math.sqrt(3) // corner radius
   const W = (cols + 0.5) * w
   const D = (rows - 1) * 1.5 * R + 2 * R
@@ -181,4 +183,26 @@ export function hexGrid(cols = 13, rows = 15) {
   }
 }
 
-export const GRIDS = { square: squareGrid(), diag: diagGrid(), tri: triGrid(), hex: hexGrid() }
+/**
+ * All floors for an arena of bx × by big squares. Triangles and hexagons keep their size and fill
+ * about the same area as the squares.
+ */
+export function makeGrids(bx = 2, by = 2) {
+  const W = bx * BLOCK
+  const D = by * BLOCK
+  const triSide = (2 * SIZE) / 24
+  const triH = (triSide * Math.sqrt(3)) / 2
+  const hexW = SIZE / 13.5
+  const hexR = hexW / Math.sqrt(3)
+  return {
+    square: squareGrid(W, D),
+    diag: diagGrid(W, D),
+    tri: triGrid(Math.round((2 * W) / triSide - 1), Math.round(D / triH)),
+    hex: hexGrid(Math.round(W / hexW - 0.5), Math.round((D - 2 * hexR) / (1.5 * hexR) + 1)),
+  }
+}
+
+export const GRIDS = makeGrids()
+
+// Arena sizes offered in the UI: number of big squares → [columns, rows] of big squares.
+export const ARENAS = { 4: [2, 2], 6: [3, 2], 9: [3, 3], 12: [4, 3], 16: [4, 4] }

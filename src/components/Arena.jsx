@@ -62,9 +62,9 @@ export function Floor({ grid, onPick }) {
           sectionSize={7}
           sectionThickness={1.3}
           sectionColor={ORANGE}
-          fadeDistance={60}
+          fadeDistance={60 * Math.max(grid.width, grid.depth) / 14}
           fadeStrength={1.6}
-          position={[0, 0.002, 0]}
+          position={[-grid.width / 2, 0.002, -grid.depth / 2]}
         />
       ) : (
         <>

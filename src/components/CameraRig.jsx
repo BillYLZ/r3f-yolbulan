@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { SIZE } from '../grids.js'
 
 const PANEL = 352 // desktop side panel width incl. margin
 const FOLLOW_OFFSET = new THREE.Vector3(0, 5, 6)
@@ -22,7 +21,7 @@ const ease = (t) => 1 - Math.pow(1 - t, 3)
  * `gestures` on: one finger / left mouse rotates, two fingers zoom + pan.
  * `gestures` off: touch is left for editing the arena; two fingers and right mouse still move the camera.
  */
-export default function CameraRig({ view, resetKey, gestures, followRef }) {
+export default function CameraRig({ grid, view, resetKey, gestures, followRef }) {
   const { camera, size } = useThree()
   const controls = useRef()
   const anim = useRef(null)
@@ -32,7 +31,7 @@ export default function CameraRig({ view, resetKey, gestures, followRef }) {
     const v = THREE.MathUtils.degToRad(camera.fov) / 2
     const side = size.width >= 768 ? PANEL : 0
     const h = Math.atan(Math.tan(v) * ((size.width - side) / size.height))
-    return Math.max((SIZE * 0.55) / Math.tan(h), (SIZE * 0.55) / Math.tan(v))
+    return Math.max((grid.width * 0.55) / Math.tan(h), (grid.depth * 0.55) / Math.tan(v))
   }
 
   // Desktop: shift the projection so the arena centers in the space beside the panel.
@@ -57,7 +56,7 @@ export default function CameraRig({ view, resetKey, gestures, followRef }) {
     }
     anim.current = { t: 0, fromPos: camera.position.clone(), fromTarget: c.target.clone(), toPos, toTarget }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, resetKey, size.width, size.height])
+  }, [view, resetKey, size.width, size.height, grid])
 
   useFrame((_, dt) => {
     const c = controls.current
@@ -105,7 +104,7 @@ export default function CameraRig({ view, resetKey, gestures, followRef }) {
       touches={gestures ? { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN } : { TWO: THREE.TOUCH.DOLLY_PAN }}
       maxPolarAngle={Math.PI / 2.1}
       minDistance={3}
-      maxDistance={80}
+      maxDistance={Math.max(grid.width, grid.depth) * 6}
       onStart={() => (anim.current = null)}
     />
   )

@@ -23,6 +23,12 @@ React Three Fiber + shadcn/ui ile 3B yol bulma laboratuvarı: 9 yöntem, 4 zemin
 
 Zemin değişince Start, Finish, engeller ve arazi o zemine göre yeniden kurulur.
 
+### Saha büyüklüğü
+
+Zemindeki turuncu çizgiler sahayı **büyük karelere** böler (her biri 7 × 7 küçük kare). **Saha** seçicisiyle 4 (2 × 2), 6 (3 × 2), 9 (3 × 3), 12 (4 × 3) ya da 16 (4 × 4) büyük kare seçilebilir; 16'da saha 28 × 28 küçük karedir. Üçgen, altıgen ve çapraz zeminler de aynı alana büyür; kamera sahayı sığacak şekilde uzaklaşır. Büyük sahalarda yolbulan1995'in sayılar ve yol aşamaları yine en fazla 1,5 saniye sürer; iterasyonlar Hız ayarına göre oynar.
+
+<img src="docs/saha16.png" alt="16 büyük karelik saha" width="70%" />
+
 ## Yöntemler
 
 | Yöntem | Ne yapar | En kısa yol? |

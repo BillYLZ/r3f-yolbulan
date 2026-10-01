@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { diagGrid, hexGrid, squareGrid, triGrid } from './grids.js'
+import { ARENAS, GRIDS, diagGrid, hexGrid, makeGrids, squareGrid, triGrid } from './grids.js'
 
 for (const grid of [squareGrid(), diagGrid(), triGrid(), hexGrid()]) {
   test(`${grid.id}: neighbours are mutual and share an edge`, () => {
@@ -39,4 +39,23 @@ test('diagonal steps never cut a wall corner', () => {
   const n = g.neighbors([5, 5], walls).map(String)
   assert.ok(!n.includes('6,6') && !n.includes('6,4'))
   assert.ok(n.includes('4,4'))
+})
+
+test('default arena is unchanged: 14 × 14 squares, 23 × 14 triangles, 13 × 15 hexagons', () => {
+  assert.deepEqual([GRIDS.square.cols, GRIDS.square.rows], [14, 14])
+  assert.deepEqual([GRIDS.tri.cols, GRIDS.tri.rows], [23, 14])
+  assert.deepEqual([GRIDS.hex.cols, GRIDS.hex.rows], [13, 15])
+})
+
+test('bigger arenas grow every floor to about the same size', () => {
+  for (const [n, [bx, by]] of Object.entries(ARENAS)) {
+    const g = makeGrids(bx, by)
+    assert.equal((g.square.cols / 7) * (g.square.rows / 7), Number(n))
+    for (const grid of Object.values(g)) {
+      assert.ok(Math.abs(grid.width - bx * 7) < 1, `${grid.id} width ${grid.width}`)
+      assert.ok(Math.abs(grid.depth - by * 7) < 1, `${grid.id} depth ${grid.depth}`)
+      // corners of the arena map back to their cells
+      for (const c of [grid.start, grid.goal, [0, 0], [grid.cols - 1, grid.rows - 1]]) assert.deepEqual(grid.toCell(...grid.toWorld(c)), c)
+    }
+  }
 })
