@@ -1,7 +1,9 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Edges, Grid } from '@react-three/drei'
+import { Grid } from '@react-three/drei'
+import * as THREE from 'three'
 import { SIZE, toWorld } from '../grid.js'
+import { buildWallShell } from '../wallMesh.js'
 
 const ORANGE = '#ef7d3c'
 const HALF = SIZE / 2
@@ -48,17 +50,31 @@ export function Fence() {
   ))
 }
 
+// All walls as one merged shell, so touching walls read as a single block.
 export function Obstacles({ walls }) {
-  return [...walls].map((k) => {
-    const [wx, wz] = toWorld(k.split(',').map(Number))
-    return (
-      <mesh key={k} position={[wx, 0.25, wz]}>
-        <boxGeometry args={[0.94, 0.5, 0.94]} />
+  const { faceGeo, edgeGeo } = useMemo(() => {
+    const { faces, edges } = buildWallShell(walls)
+    const faceGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(faces, 3))
+    const edgeGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(edges, 3))
+    return { faceGeo, edgeGeo }
+  }, [walls])
+  useEffect(
+    () => () => {
+      faceGeo.dispose()
+      edgeGeo.dispose()
+    },
+    [faceGeo, edgeGeo],
+  )
+  return (
+    <group>
+      <mesh geometry={faceGeo}>
         <meshBasicMaterial color={ORANGE} transparent opacity={0.1} depthWrite={false} />
-        <Edges color={ORANGE} threshold={15} transparent opacity={0.6} />
       </mesh>
-    )
-  })
+      <lineSegments geometry={edgeGeo}>
+        <lineBasicMaterial color={ORANGE} transparent opacity={0.6} />
+      </lineSegments>
+    </group>
+  )
 }
 
 export function Trail({ visited, path }) {
