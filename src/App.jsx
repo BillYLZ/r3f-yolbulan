@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Box, BrickWall, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
-import { astar, key, randomWalls } from './astar.js'
+import { Box, BrickWall, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
+import { METHODS, key, methodById, randomWalls } from './algorithms/index.js'
 import { SIZE, inBounds, toCell } from './grid.js'
 import Runner from './components/Runner.jsx'
 import CameraRig from './components/CameraRig.jsx'
@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const START = [1, SIZE - 2]
 const GOAL = [SIZE - 2, 1]
@@ -40,6 +41,7 @@ export default function App() {
   const [phase, setPhase] = useState('idle') // idle | search | walk | done | blocked
   const [stats, setStats] = useState(null)
   const [view, setView] = useState('persp')
+  const [method, setMethod] = useState('astar')
   const [resetKey, setResetKey] = useState(0)
   const [gestures, setGestures] = useState(false)
   const runnerRef = useRef()
@@ -92,7 +94,7 @@ export default function App() {
     if (busy) return
     clearTrail()
     placeRunner(start)
-    const result = astar(SIZE, walls, start, goal)
+    const result = methodById(method).run(SIZE, walls, start, goal)
     setPhase('search')
     let i = 0
     timer.current = setInterval(() => {
@@ -184,7 +186,7 @@ export default function App() {
           <CardTitle className="flex items-center gap-2 text-lg">
             <Route className="size-5 text-primary" /> Yol Bulan
           </CardTitle>
-          <CardDescription>Başlangıçtan bitişe en kısa yolu A* algoritması bulur.</CardDescription>
+          <CardDescription>Başlangıçtan bitişe yolu seçtiğin yöntem bulur.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 px-4 md:px-6">
           <div className="flex flex-col gap-2">
@@ -200,6 +202,24 @@ export default function App() {
                 <Flag style={{ color: GOAL_COLOR }} /> Finish
               </ToggleGroupItem>
             </ToggleGroup>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="hidden text-xs font-medium text-muted-foreground md:block">Yol bulma yöntemi</span>
+            <Select value={method} onValueChange={(v) => { clearTrail(); setMethod(v) }} disabled={busy}>
+              <SelectTrigger className="w-full *:data-[slot=select-value]:flex-1" aria-label="Yol bulma yöntemi">
+                <Cpu className="text-primary" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {METHODS.map((m) => (
+                  <SelectItem key={m.id} value={m.id} disabled={!m.ready} hint={m.description}>
+                    {m.name}
+                    {!m.ready && ' · yakında'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-[1fr_auto_auto] gap-2 md:grid-cols-2">
