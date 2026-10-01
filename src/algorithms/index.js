@@ -15,9 +15,9 @@ export const METHODS = [
   {
     id: 'yolbulan1995',
     name: 'yolbulan1995',
-    description: 'Kendi yöntemimiz — kuralları tanımlanınca açılacak.',
+    description: 'Start = 0, komşulara 1, 2, 3… puan verir; Finish bulununca durur.',
     run: yolbulan1995,
-    ready: false,
+    ready: true,
   },
 ]
 

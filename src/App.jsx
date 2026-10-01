@@ -38,6 +38,7 @@ export default function App() {
   const [mode, setMode] = useState('wall')
   const [visited, setVisited] = useState(new Set())
   const [path, setPath] = useState([])
+  const [scores, setScores] = useState(null)
   const [phase, setPhase] = useState('idle') // idle | search | walk | done | blocked
   const [stats, setStats] = useState(null)
   const [view, setView] = useState('persp')
@@ -55,6 +56,7 @@ export default function App() {
   const clearTrail = () => {
     setVisited(new Set())
     setPath([])
+    setScores(null)
     setStats(null)
     setPhase('idle')
   }
@@ -95,19 +97,33 @@ export default function App() {
     clearTrail()
     placeRunner(start)
     const result = methodById(method).run(SIZE, walls, start, goal)
+    setScores(result.scores ?? null)
     setPhase('search')
-    let i = 0
-    timer.current = setInterval(() => {
-      i += 4
-      setVisited(new Set(result.visited.slice(0, i).map((p) => key(...p))))
-      if (i < result.visited.length) return
-      clearInterval(timer.current)
-      setStats({ steps: result.path.length ? result.path.length - 1 : null, scanned: result.visited.length })
-      if (!result.path.length) return setPhase('blocked')
-      setPath(result.path)
-      queue.current = result.path.slice(1)
-      setPhase(queue.current.length ? 'walk' : 'done')
-    }, 16)
+    // Animation frames: how many visited cells to show per tick. Scoring methods reveal one score wave per tick.
+    const frames = []
+    if (result.scores) {
+      result.visited.forEach((c, j) => {
+        const next = result.visited[j + 1]
+        if (!next || result.scores.get(key(...next)) !== result.scores.get(key(...c))) frames.push(j + 1)
+      })
+    } else {
+      for (let j = 4; j < result.visited.length + 4; j += 4) frames.push(Math.min(j, result.visited.length))
+    }
+    let f = 0
+    timer.current = setInterval(
+      () => {
+        setVisited(new Set(result.visited.slice(0, frames[f]).map((p) => key(...p))))
+        f += 1
+        if (f < frames.length) return
+        clearInterval(timer.current)
+        setStats({ steps: result.path.length ? result.path.length - 1 : null, scanned: result.visited.length })
+        if (!result.path.length) return setPhase('blocked')
+        setPath(result.path)
+        queue.current = result.path.slice(1)
+        setPhase(queue.current.length ? 'walk' : 'done')
+      },
+      result.scores ? 140 : 16,
+    )
   }
 
   const shuffle = () => {
@@ -153,7 +169,7 @@ export default function App() {
           <directionalLight position={[6, 14, 8]} intensity={1.6} />
           <Floor onPick={pick} />
           <Fence />
-          <Trail visited={visited} path={path} />
+          <Trail visited={visited} path={path} scores={scores} />
           <Obstacles walls={walls} />
           <Marker cell={start} color={START_COLOR} />
           <Marker cell={goal} color={GOAL_COLOR} pulse />

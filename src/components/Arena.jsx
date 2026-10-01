@@ -77,27 +77,63 @@ export function Obstacles({ walls }) {
   )
 }
 
-export function Trail({ visited, path }) {
+// One cached canvas texture per score number.
+const numberTextures = new Map()
+function numberTexture(n) {
+  if (!numberTextures.has(n)) {
+    const c = document.createElement('canvas')
+    c.width = c.height = 128
+    const g = c.getContext('2d')
+    g.fillStyle = '#ffffff'
+    g.font = `700 ${n > 99 ? 54 : 70}px ui-sans-serif, system-ui, sans-serif`
+    g.textAlign = 'center'
+    g.textBaseline = 'middle'
+    g.fillText(String(n), 64, 68)
+    const t = new THREE.CanvasTexture(c)
+    t.anisotropy = 4
+    numberTextures.set(n, t)
+  }
+  return numberTextures.get(n)
+}
+
+function flat(wx, wz, y) {
+  return { position: [wx, y, wz], rotation: [-Math.PI / 2, 0, 0] }
+}
+
+// Visited cells, the found path and — for methods that score cells — each cell's score.
+export function Trail({ visited, path, scores }) {
+  const onPath = new Set(path.map((c) => c.join(',')))
   return (
     <>
       {[...visited].map((k) => {
         const [wx, wz] = toWorld(k.split(',').map(Number))
+        const score = scores?.get(k)
+        const hot = scores && onPath.has(k)
         return (
-          <mesh key={k} position={[wx, 0.01, wz]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[0.9, 0.9]} />
-            <meshBasicMaterial color={ORANGE} transparent opacity={0.13} />
-          </mesh>
+          <group key={k}>
+            <mesh {...flat(wx, wz, 0.01)}>
+              <planeGeometry args={[0.9, 0.9]} />
+              <meshBasicMaterial color={ORANGE} transparent opacity={hot ? 0.55 : 0.13} depthWrite={false} />
+            </mesh>
+            {score !== undefined && (
+              <mesh {...flat(wx, wz, 0.02)}>
+                <planeGeometry args={[0.62, 0.62]} />
+                <meshBasicMaterial map={numberTexture(score)} transparent opacity={hot ? 1 : 0.7} depthWrite={false} />
+              </mesh>
+            )}
+          </group>
         )
       })}
-      {path.map((c, i) => {
-        const [wx, wz] = toWorld(c)
-        return (
-          <mesh key={i} position={[wx, 0.02, wz]} rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[0.13, 20]} />
-            <meshBasicMaterial color={ORANGE} />
-          </mesh>
-        )
-      })}
+      {!scores &&
+        path.map((c, i) => {
+          const [wx, wz] = toWorld(c)
+          return (
+            <mesh key={i} {...flat(wx, wz, 0.02)}>
+              <circleGeometry args={[0.13, 20]} />
+              <meshBasicMaterial color={ORANGE} />
+            </mesh>
+          )
+        })}
     </>
   )
 }
