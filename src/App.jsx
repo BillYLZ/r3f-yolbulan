@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { BarChart3, LayoutGrid, Box, BrickWall, Footprints, Hexagon, MoveDiagonal, Square, Triangle, Waves, X, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
+import { BarChart3, ChevronUp, LayoutGrid, Box, BrickWall, Footprints, Hexagon, MoveDiagonal, Square, Triangle, Waves, X, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
 import { METHODS, key, methodById, pathCost, randomTerrain, randomWalls, supports } from './algorithms/index.js'
 import { ARENAS, GRIDS, makeGrids } from './grids.js'
 import Runner from './components/Runner.jsx'
@@ -102,7 +102,7 @@ function describe(step) {
 const PHASE_LABELS = ['Sayılar', 'İterasyonlar', 'Yol', 'Git']
 
 // Live view of the phased replay: which phase, what is happening now, progress, skip to the next phase.
-function IterationPanel({ view, tl, walking, summary, onSkip }) {
+function IterationPanel({ view, tl, walking, summary, onSkip, raised }) {
   const p = walking || summary ? 3 : view.p
   const phase = tl.phases[view.p]
   let title, detail, progress
@@ -124,7 +124,7 @@ function IterationPanel({ view, tl, walking, summary, onSkip }) {
     progress = view.i / phase.length
   }
   return (
-    <div className="pointer-events-auto absolute inset-x-0 bottom-2 mx-auto w-[min(calc(100%-2rem),380px)] rounded-lg border bg-card px-3 py-2 text-xs shadow-sm backdrop-blur md:bottom-4 md:left-88">
+    <div className={`pointer-events-auto absolute inset-x-0 ${raised ? 'bottom-16' : 'bottom-2'} mx-auto w-[min(calc(100%-2rem),380px)] rounded-lg border bg-card px-3 py-2 text-xs shadow-sm backdrop-blur md:bottom-4 md:left-88`}>
       <div className="mb-2 grid grid-cols-4 gap-1">
         {PHASE_LABELS.map((label, j) => (
           <div key={label} className="flex flex-col gap-1">
@@ -162,6 +162,8 @@ export default function App() {
   const [terrain, setTerrain] = useState(() => randomTerrain(GRIDS.square, walls, GRIDS.square.start, GRIDS.square.goal, 0.1))
   const [gridId, setGridId] = useState('square')
   const [compare, setCompare] = useState(null)
+  const [panelOpen, setPanelOpen] = useState(true) // phone: the bottom panel slides away while a search plays
+  const swipe = useRef(null)
   const [mode, setMode] = useState('wall')
   const [visited, setVisited] = useState(new Set())
   const [path, setPath] = useState([])
@@ -255,6 +257,8 @@ export default function App() {
     if (busy) return
     clearTrail()
     placeRunner(start)
+    // On a phone, slide the panel down so the whole screen shows the scene.
+    if (window.matchMedia('(max-width: 767px)').matches) setPanelOpen(false)
     const result = methodById(method).run(grid, walls, start, goal, { random: randomPath, costs: terrain })
     pending.current = result
     setPhase('search')
@@ -437,7 +441,20 @@ export default function App() {
             walking={phase === 'walk'}
             summary={summary}
             onSkip={phase === 'search' ? skipPhase : null}
+            raised={!panelOpen}
           />
+        )}
+        {!panelOpen && (
+          <Button
+            variant="secondary"
+            className="absolute bottom-3 left-1/2 h-10 -translate-x-1/2 rounded-full px-5 shadow-lg backdrop-blur md:hidden"
+            onClick={() => setPanelOpen(true)}
+            onPointerDown={(e) => (swipe.current = e.clientY)}
+            onPointerUp={(e) => swipe.current !== null && swipe.current - e.clientY > 20 && setPanelOpen(true)}
+            aria-label="Paneli aç"
+          >
+            <ChevronUp /> Panel
+          </Button>
         )}
         {compare && (
           <ComparePanel
@@ -469,7 +486,21 @@ export default function App() {
         </div>
       </div>
 
-      <Card className="max-h-[56%] gap-4 overflow-y-auto rounded-none rounded-t-xl border-x-0 border-b-0 py-4 backdrop-blur md:absolute md:top-4 md:left-4 md:max-h-[calc(100%-2rem)] md:w-80 md:gap-4 md:rounded-xl md:border md:py-5">
+      <Card
+        className={`gap-4 overflow-y-auto rounded-none rounded-t-xl border-x-0 border-b-0 backdrop-blur transition-[max-height,padding] duration-300 ease-out md:absolute md:top-4 md:left-4 md:max-h-[calc(100%-2rem)] md:w-80 md:gap-4 md:rounded-xl md:border md:py-5 ${
+          panelOpen ? 'max-h-[56%] pt-2 pb-4' : 'max-h-0 border-t-0 py-0'
+        }`}
+      >
+        <button
+          type="button"
+          className="-mb-2 flex w-full shrink-0 touch-none justify-center py-1 md:hidden"
+          onClick={() => setPanelOpen(false)}
+          onPointerDown={(e) => (swipe.current = e.clientY)}
+          onPointerUp={(e) => swipe.current !== null && e.clientY - swipe.current > 20 && setPanelOpen(false)}
+          aria-label="Paneli kapat"
+        >
+          <span className="h-1.5 w-10 rounded-full bg-muted-foreground/40" />
+        </button>
         <CardHeader className="hidden md:grid">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Route className="size-5 text-primary" /> Yol Bulan

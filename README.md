@@ -72,6 +72,7 @@ Her adım 1 tutar (çapraz adım √2). **Çamur**a girmek 3, **su**ya girmek 5 
 - **Rastgele**: seçili yoğunlukta engel ve arazi (her zaman çözülebilir). **Temizle**: hepsini siler.
 - **Engel / Arazi / Hız**: rastgele haritanın doluluğu ve oynatma hızı.
 - **Kamera**: Perspektif · Üstten · İzometrik · Takip (küpü izler). Seçili görünüme tekrar dokunmak o açıya sıfırlar.
+- **Telefonda** **Yolu Bul**'a basınca alttaki panel aşağı kayar, ekranda sadece sahne kalır. Alttaki **Panel ▲** düğmesine dokununca (ya da yukarı kaydırınca) panel geri açılır; panelin üstündeki tutamaçla elle de kapatılabilir.
 - **✋ (sağ üst)**: açıkken 1 parmak / sol tık döndürür, 2 parmak yakınlaştırır ve kaydırır. Kapalıyken dokunmak arenayı düzenler; 2 parmak yine çalışır.
 
 ## Geliştirme
