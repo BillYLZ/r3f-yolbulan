@@ -7,6 +7,8 @@ import { buildWallShell } from '../wallMesh.js'
 const ORANGE = '#ef7d3c'
 const CELL_LINE = '#3b2b24'
 const VIOLET = '#a78bfa'
+const WALL_FILL = '#c2612a'
+const BACKGROUND = '#0b0b10'
 const TERRAIN = { 3: '#b07a45', 5: '#3b82f6' }
 
 // Flat geometries for a cell's outline, cached by shape: tiles, and a frame (ring) for the cursor.
@@ -127,13 +129,29 @@ export function Obstacles({ grid, walls }) {
     },
     [faceGeo, edgeGeo],
   )
+  // Two passes so only the surface nearest the camera shows: first the shell is painted solid in the background
+  // colour (hiding the floor lines and anything behind it), then the translucent fill draws where that depth
+  // matches. Faces and edges behind it are hidden.
+  // The polygon offset pushes the faces back a hair so the outline edges lying on them stay visible.
   return (
     <group>
-      <mesh geometry={faceGeo}>
-        <meshBasicMaterial color={ORANGE} transparent opacity={0.1} depthWrite={false} />
+      <mesh geometry={faceGeo} renderOrder={1}>
+        <meshBasicMaterial color={BACKGROUND} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
       </mesh>
-      <lineSegments geometry={edgeGeo}>
-        <lineBasicMaterial color={ORANGE} transparent opacity={0.6} />
+      <mesh geometry={faceGeo} renderOrder={2}>
+        <meshBasicMaterial
+          color={WALL_FILL}
+          transparent
+          opacity={0.45}
+          depthWrite={false}
+          depthFunc={THREE.LessEqualDepth}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+        />
+      </mesh>
+      <lineSegments geometry={edgeGeo} renderOrder={3}>
+        <lineBasicMaterial color={ORANGE} transparent opacity={0.85} />
       </lineSegments>
     </group>
   )
