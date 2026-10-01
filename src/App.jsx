@@ -143,21 +143,12 @@ export default function App() {
   return (
     <div className="relative flex h-full flex-col md:block">
       <div className="relative min-h-0 flex-1 md:absolute md:inset-0">
-        <Canvas shadows camera={{ fov: 45 }} onContextMenu={(e) => e.preventDefault()} style={{ touchAction: 'none' }}>
+        <Canvas camera={{ fov: 45 }} onContextMenu={(e) => e.preventDefault()} style={{ touchAction: 'none' }}>
           <color attach="background" args={['#0b0b10']} />
           <fog attach="fog" args={['#0b0b10', 30, 90]} />
           <CameraRig view={view} resetKey={resetKey} gestures={gestures} followRef={runnerRef} />
           <ambientLight intensity={0.55} />
-          <directionalLight
-            position={[6, 14, 8]}
-            intensity={1.6}
-            castShadow
-            shadow-mapSize={[2048, 2048]}
-            shadow-camera-left={-9}
-            shadow-camera-right={9}
-            shadow-camera-top={9}
-            shadow-camera-bottom={-9}
-          />
+          <directionalLight position={[6, 14, 8]} intensity={1.6} />
           <Floor onPick={pick} />
           <Fence />
           <Trail visited={visited} path={path} />

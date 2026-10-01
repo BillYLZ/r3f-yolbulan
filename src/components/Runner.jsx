@@ -57,7 +57,7 @@ export default function Runner({ queue, onStep, snap, speed = 3.5, groupRef }) {
     <group ref={group}>
       <mesh ref={cube} renderOrder={2}>
         <boxGeometry args={[S, S, S]} />
-        <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.5} transparent opacity={0.45} depthWrite={false} />
+        <meshBasicMaterial color="#38bdf8" transparent opacity={0.45} depthWrite={false} />
         <Edges color="#bae6fd" />
       </mesh>
     </group>

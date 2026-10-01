@@ -23,9 +23,9 @@ export function Floor({ onPick }) {
         fadeStrength={1.6}
         position={[0, 0.002, 0]}
       />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow onPointerDown={onPick} onPointerMove={onPick}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} onPointerDown={onPick} onPointerMove={onPick}>
         <planeGeometry args={[SIZE, SIZE]} />
-        <shadowMaterial opacity={0.45} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </>
   )
@@ -102,17 +102,24 @@ export function Trail({ visited, path }) {
   )
 }
 
-// Solid colored cylinder marking the start or finish cell.
+// Thin, tall colored pillar marking the start or finish cell, on a flat disc so the cell reads clearly.
+// Lambert + emissive and no shadows: renders on every mobile GPU.
 export function Marker({ cell, color, pulse }) {
   const ref = useRef()
   useFrame(({ clock }) => {
-    if (pulse) ref.current.material.emissiveIntensity = 0.45 + Math.sin(clock.elapsedTime * 4) * 0.25
+    if (pulse) ref.current.material.emissiveIntensity = 0.5 + Math.sin(clock.elapsedTime * 4) * 0.25
   })
   const [wx, wz] = toWorld(cell)
   return (
-    <mesh ref={ref} position={[wx, 0.4, wz]} castShadow receiveShadow>
-      <cylinderGeometry args={[0.36, 0.36, 0.8, 40]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.45} roughness={0.45} />
-    </mesh>
+    <group position={[wx, 0, wz]}>
+      <mesh ref={ref} position={[0, 0.9, 0]}>
+        <cylinderGeometry args={[0.13, 0.13, 1.8, 24]} />
+        <meshLambertMaterial color={color} emissive={color} emissiveIntensity={0.5} />
+      </mesh>
+      <mesh position={[0, 0.012, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.4, 40]} />
+        <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} />
+      </mesh>
+    </group>
   )
 }
