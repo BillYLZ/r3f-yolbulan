@@ -266,23 +266,23 @@ export function Trail({ grid, visited, path, scores, sides, fresh, cursor, branc
   )
 }
 
-// Thin, tall colored pillar marking the start or finish cell, on a flat disc so the cell reads clearly.
-// Lambert + emissive and no shadows: renders on every mobile GPU.
+// Thin, tall colored pillar marking the start or finish cell, standing on the cell painted a darker shade of
+// the same colour. Lambert + emissive and no shadows: renders on every mobile GPU.
 export function Marker({ grid, cell, color, pulse }) {
   const ref = useRef()
+  const base = useMemo(() => new THREE.Color(color).multiplyScalar(0.15), [color])
   useFrame(({ clock }) => {
     if (pulse) ref.current.material.emissiveIntensity = 0.5 + Math.sin(clock.elapsedTime * 4) * 0.25
   })
   const [wx, wz] = grid.toWorld(cell)
   return (
-    <group position={[wx, 0, wz]}>
-      <mesh ref={ref} position={[0, 0.9, 0]}>
-        <cylinderGeometry args={[0.13, 0.13, 1.8, 24]} />
+    <group>
+      <mesh ref={ref} position={[wx, 0.9, wz]}>
+        <cylinderGeometry args={[0.07, 0.07, 1.8, 20]} />
         <meshLambertMaterial color={color} emissive={color} emissiveIntensity={0.5} />
       </mesh>
-      <mesh position={[0, 0.012, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.4 * grid.cellSize, 40]} />
-        <meshBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} />
+      <mesh {...flat(wx, wz, 0.012)} geometry={cellGeometry(grid, cell, 0.94)}>
+        <meshBasicMaterial color={base} />
       </mesh>
     </group>
   )
