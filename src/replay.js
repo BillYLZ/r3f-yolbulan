@@ -19,7 +19,7 @@ export function buildTimeline(result, speed) {
     phases: [
       // numbers and path take at most ~1.5 s however big the arena; iterations follow the speed setting
       { id: 'numbers', label: 'Sayılar yazılıyor', length: maxScore + 1, rate: Math.max(15, (maxScore + 1) / 1.5) },
-      { id: 'iterate', label: 'İterasyonlar', length: iterSteps.length, rate: 40 * speed },
+      { id: 'iterate', label: 'İterasyonlar', length: iterSteps.length, rate: 80 * speed },
       { id: 'trace', label: 'Bulunan yol çiziliyor', length: traceSteps.length, rate: Math.max(15, traceSteps.length / 1.5) },
     ],
   }

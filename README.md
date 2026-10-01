@@ -45,7 +45,7 @@ Zemindeki turuncu çizgiler sahayı **büyük karelere** böler (her biri 7 × 7
 
 **yolbulan1995** ve **Çift yönlü dalga** dört aşamada oynatılır:
 1. **Sayılar**: bütün puanlar dalga dalga yazılır (çift yönlüde Start tarafı turuncu, Finish tarafı mor).
-2. **İterasyonlar**: her iterasyon **Hız** ayarına göre (saniyede 40 × Hız) oynatılır; işlenen kare mavi çerçeveli, denenen her adım bir dal olarak büyür.
+2. **İterasyonlar**: her iterasyon **Hız** ayarına göre (saniyede 80 × Hız) oynatılır; işlenen kare mavi çerçeveli, denenen her adım bir dal olarak büyür.
 3. **Yol**: bulunan yol Finish'ten Start'a adım adım çizilir.
 4. **Git**: küp yolu yürür.
 
@@ -70,7 +70,7 @@ Her adım 1 tutar (çapraz adım √2). **Çamur**a girmek 3, **su**ya girmek 5 
 
 - **Arenaya dokununca**: Engel · Çamur · Su (sürükleyerek boyanır) · Start · Finish.
 - **Rastgele**: seçili yoğunlukta engel ve arazi (her zaman çözülebilir). **Temizle**: hepsini siler.
-- **Engel / Arazi / Hız**: rastgele haritanın doluluğu ve oynatma hızı.
+- **Engel / Arazi / Hız**: rastgele haritanın doluluğu ve oynatma hızı. Hız 1–10 (varsayılan 6): iterasyonlar saniyede 80 × Hız, küp saniyede 2 × Hız kare.
 - **Kamera**: Perspektif · Üstten · İzometrik · Takip (küpü izler). Seçili görünüme tekrar dokunmak o açıya sıfırlar.
 - **Telefonda** **Yolu Bul**'a basınca alttaki panel aşağı kayar, ekranda sadece sahne kalır. Alttaki **Panel ▲** düğmesine dokununca (ya da yukarı kaydırınca) panel geri açılır; panelin üstündeki tutamaçla elle de kapatılabilir.
 - **✋ (sağ üst)**: açıkken 1 parmak / sol tık döndürür, 2 parmak yakınlaştırır ve kaydırır. Kapalıyken dokunmak arenayı düzenler; 2 parmak yine çalışır.

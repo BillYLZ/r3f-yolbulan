@@ -156,7 +156,7 @@ export default function App() {
   const [snap, setSnap] = useState({ cell: GRIDS.square.start })
   const [goal, setGoal] = useState(GRIDS.square.goal)
   const [density, setDensity] = useState(25)
-  const [speed, setSpeed] = useState(4)
+  const [speed, setSpeed] = useState(6)
   const [walls, setWalls] = useState(() => randomWalls(GRIDS.square, GRIDS.square.start, GRIDS.square.goal, 0.25))
   const [terrainDensity, setTerrainDensity] = useState(10)
   const [terrain, setTerrain] = useState(() => randomTerrain(GRIDS.square, walls, GRIDS.square.start, GRIDS.square.goal, 0.1))
@@ -429,7 +429,7 @@ export default function App() {
           <Obstacles grid={grid} walls={walls} />
           <Marker grid={grid} cell={start} color={START_COLOR} />
           <Marker grid={grid} cell={goal} color={GOAL_COLOR} pulse />
-          <Runner grid={grid} queue={queue} onStep={onStep} snap={snap} speed={speed} groupRef={runnerRef} />
+          <Runner grid={grid} queue={queue} onStep={onStep} snap={snap} speed={speed * 2} groupRef={runnerRef} />
         </Canvas>
         <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center md:top-4 md:left-88">
           <Badge variant={status.variant} className="px-3 py-1 text-sm">{status.text}</Badge>
