@@ -4,14 +4,13 @@ import { Edges } from '@react-three/drei'
 import * as THREE from 'three'
 import { toWorld } from '../grid.js'
 
-const SPEED = 3.5 // cells per second
 const S = 0.5 // cube size
 const BASE = 0.2 // sits on top of the start/finish tiles
 const UP = new THREE.Vector3(0, 1, 0)
 const axis = new THREE.Vector3()
 
 // A cube that tumbles through the cells in `queue` (a ref'd array of [x, y]), calling onStep on each arrival.
-export default function Runner({ queue, onStep, snap }) {
+export default function Runner({ queue, onStep, snap, speed = 3.5 }) {
   const group = useRef()
   const cube = useRef()
   const from = useRef(new THREE.Vector3())
@@ -35,7 +34,7 @@ export default function Runner({ queue, onStep, snap }) {
     const dx = tx - g.position.x
     const dz = tz - g.position.z
     const d = Math.hypot(dx, dz)
-    const step = SPEED * dt
+    const step = speed * dt
     if (d <= step) {
       g.position.set(tx, 0, tz)
       from.current.set(tx, 0, tz)
