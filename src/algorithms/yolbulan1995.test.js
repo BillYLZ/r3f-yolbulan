@@ -54,3 +54,32 @@ test('steps replay to the same scores and trace the path back from finish', () =
     }
   }
 })
+
+// Small seeded generator so random runs are repeatable.
+const seeded = (seed) => () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296)
+
+test('counts distinct shortest paths', () => {
+  // 3×3 open grid, corner to corner: C(4, 2) = 6 paths
+  assert.equal(yolbulan1995(3, new Set(), [0, 0], [2, 2]).pathCount, 6)
+  assert.equal(yolbulan1995(3, new Set([key(1, 1)]), [0, 0], [2, 2]).pathCount, 2)
+})
+
+test('random mode finds different shortest paths, all valid and shortest', () => {
+  const seen = new Set()
+  for (let seed = 1; seed <= 30; seed++) {
+    const { path, steps, scores } = yolbulan1995(8, new Set(), [0, 0], [7, 7], { random: true, rng: seeded(seed) })
+    assert.equal(path.length, 15)
+    path.forEach(([x, y], i) => assert.equal(scores.get(key(x, y)), i))
+    const traced = steps.filter((s) => s.t === 'trace').map((s) => s.cell)
+    assert.deepEqual(traced, [...path].reverse())
+    seen.add(path.join(';'))
+  }
+  assert.ok(seen.size > 10, `only ${seen.size} different paths`)
+})
+
+test('fixed mode always finds the same path', () => {
+  const walls = randomWalls(10, [0, 9], [9, 0], 0.2)
+  const a = yolbulan1995(10, walls, [0, 9], [9, 0]).path
+  const b = yolbulan1995(10, walls, [0, 9], [9, 0]).path
+  assert.deepEqual(a, b)
+})

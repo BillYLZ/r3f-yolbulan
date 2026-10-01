@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Box, BrickWall, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
+import { Box, BrickWall, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
 import { METHODS, key, methodById, randomWalls } from './algorithms/index.js'
 import { SIZE, inBounds, toCell } from './grid.js'
 import Runner from './components/Runner.jsx'
@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Toggle } from '@/components/ui/toggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const START = [1, SIZE - 2]
@@ -37,7 +38,7 @@ function describe(step) {
 }
 
 // Live view of the step-by-step replay: iteration counter, what is happening now, progress, skip.
-function IterationPanel({ replay, onSkip }) {
+function IterationPanel({ replay, pathCount, onSkip }) {
   const done = replay.n >= replay.total
   const wave = replay.last ? replay.last.score : 0
   return (
@@ -53,9 +54,9 @@ function IterationPanel({ replay, onSkip }) {
           </Button>
         )}
       </div>
-      <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+      <div className="mt-1 line-clamp-2 font-mono text-[11px] text-muted-foreground">
         {done
-          ? `Bitti · ${replay.scores.size} kare puanlandı · ${replay.traced.length ? `yol ${replay.traced.length - 1} adım` : 'Finish puan alamadı, yol yok'}`
+          ? `Bitti · ${replay.scores.size} kare puanlandı · ${replay.traced.length ? `yol ${replay.traced.length - 1} adım${pathCount > 1 ? ` · ${pathCount.toLocaleString('tr-TR')} farklı en kısa yol var` : ''}` : 'Finish puan alamadı, yol yok'}`
           : describe(replay.last)}
       </div>
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
@@ -80,6 +81,7 @@ export default function App() {
   const [stats, setStats] = useState(null)
   const [view, setView] = useState('persp')
   const [method, setMethod] = useState('astar')
+  const [randomPath, setRandomPath] = useState(true)
   const [resetKey, setResetKey] = useState(0)
   const [gestures, setGestures] = useState(false)
   const runnerRef = useRef()
@@ -143,7 +145,7 @@ export default function App() {
     if (busy) return
     clearTrail()
     placeRunner(start)
-    const result = methodById(method).run(SIZE, walls, start, goal)
+    const result = methodById(method).run(SIZE, walls, start, goal, { random: randomPath })
     pending.current = result
     setPhase('search')
 
@@ -258,7 +260,7 @@ export default function App() {
         <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center md:top-4 md:left-88">
           <Badge variant={status.variant} className="px-3 py-1 text-sm">{status.text}</Badge>
         </div>
-        {replay && <IterationPanel replay={replay} onSkip={phase === 'search' ? skipReplay : null} />}
+        {replay && <IterationPanel replay={replay} pathCount={pending.current?.pathCount} onSkip={phase === 'search' ? skipReplay : null} />}
         <div className="absolute top-3 right-3 flex flex-col items-end gap-2 md:top-4 md:right-4">
           <Button
             size="icon"
@@ -317,6 +319,22 @@ export default function App() {
                 ))}
               </SelectContent>
             </Select>
+            {methodById(method).randomizable && (
+              <Toggle
+                variant="outline"
+                size="sm"
+                pressed={randomPath}
+                onPressedChange={setRandomPath}
+                disabled={busy}
+                aria-label="Rastgele yol"
+                title="Aynı uzunlukta birden çok yol varsa her seferinde farklısını seçer"
+                className="w-full justify-start text-xs text-muted-foreground data-[state=on]:border-primary/60 data-[state=on]:bg-transparent data-[state=on]:text-foreground"
+              >
+                <Dices className={randomPath ? 'text-primary' : ''} />
+                Rastgele yol: {randomPath ? 'açık' : 'kapalı'}
+                <span className="ml-auto text-muted-foreground md:hidden">eşit yollardan birini seçer</span>
+              </Toggle>
+            )}
           </div>
 
           <div className="grid grid-cols-[1fr_auto_auto] gap-2 md:grid-cols-2">

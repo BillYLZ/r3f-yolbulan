@@ -2,32 +2,47 @@ import { key } from './astar.js'
 
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]]
 
+function shuffled(list, rng) {
+  const a = [...list]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 /**
  * yolbulan1995 — her kareye puan verilir:
  *   Start = 0, 0'ın boş komşularına 1, 1'lerin boş komşularına 2, ...
  *   Engellere puan verilmez. Finish puan alınca yayılma durur.
  * Yol: Finish'ten başlayıp her adımda puanı bir eksik olan komşuya gidilerek Start'a dönülür.
  *
- * Returns { visited, path, scores, steps }
- *   scores: Map "x,y" → puan (ekranda karelerin üstünde gösterilir)
- *   steps:  her iterasyon, sırasıyla — ekranda adım adım oynatılır:
- *     { t: 'expand', cell, score }  bu kare işleniyor, boş komşularına score + 1 yazılacak
+ * options.random: aynı uzunlukta birden çok yol varsa her seferinde farklısını bulmak için
+ *   kareleri ve komşuları karışık sırayla dener, geri izlemede uygun komşulardan rastgele birini seçer.
+ * options.rng: rastgele sayı üreteci (testler için), varsayılan Math.random
+ *
+ * Returns { visited, path, scores, steps, pathCount }
+ *   scores:    Map "x,y" → puan (ekranda karelerin üstünde gösterilir)
+ *   pathCount: Start'tan Finish'e kaç farklı en kısa yol var
+ *   steps:     her iterasyon, sırasıyla — ekranda adım adım oynatılır:
+ *     { t: 'expand', cell, score }        bu kare işleniyor, boş komşularına score + 1 yazılacak
  *     { t: 'assign', cell, score, from }  bu kareye score yazıldı; from = puanı veren komşu (denenen dal)
- *     { t: 'trace',  cell, score }  geri izleme: Finish'ten Start'a yol kuruluyor
+ *     { t: 'trace',  cell, score }        geri izleme: Finish'ten Start'a yol kuruluyor
  */
-export function yolbulan1995(size, walls, start, goal) {
+export function yolbulan1995(size, walls, start, goal, { random = false, rng = Math.random } = {}) {
   const goalKey = key(...goal)
   const scores = new Map([[key(...start), 0]])
   const visited = [start]
   const steps = [{ t: 'assign', cell: start, score: 0 }]
+  const order = (list) => (random ? shuffled(list, rng) : list)
   let wave = [start]
 
   while (wave.length && !scores.has(goalKey)) {
     const next = []
-    for (const [x, y] of wave) {
+    for (const [x, y] of order(wave)) {
       const score = scores.get(key(x, y))
       steps.push({ t: 'expand', cell: [x, y], score })
-      for (const [dx, dy] of DIRS) {
+      for (const [dx, dy] of order(DIRS)) {
         const nx = x + dx
         const ny = y + dy
         const nk = key(nx, ny)
@@ -44,19 +59,31 @@ export function yolbulan1995(size, walls, start, goal) {
     wave = next
   }
 
-  if (!scores.has(goalKey)) return { visited, path: [], scores, steps }
+  if (!scores.has(goalKey)) return { visited, path: [], scores, steps, pathCount: 0 }
 
-  // Walk back from Finish, always stepping to the neighbour whose score is one lower.
+  // Number of distinct shortest paths: each cell's count is the sum of its neighbours one score lower.
+  const ways = new Map([[key(...start), 1]])
+  const byScore = [...scores.entries()].sort((a, b) => a[1] - b[1])
+  for (const [k, s] of byScore) {
+    if (s === 0) continue
+    const [x, y] = k.split(',').map(Number)
+    let w = 0
+    for (const [dx, dy] of DIRS) if (scores.get(key(x + dx, y + dy)) === s - 1) w += ways.get(key(x + dx, y + dy)) ?? 0
+    ways.set(k, w)
+  }
+
+  // Walk back from Finish, always stepping to a neighbour whose score is one lower.
   const path = [goal]
   let [x, y] = goal
   let score = scores.get(goalKey)
   steps.push({ t: 'trace', cell: goal, score })
   while (score > 0) {
-    const prev = DIRS.map(([dx, dy]) => [x + dx, y + dy]).find(([px, py]) => scores.get(key(px, py)) === score - 1)
+    const options = DIRS.map(([dx, dy]) => [x + dx, y + dy]).filter(([px, py]) => scores.get(key(px, py)) === score - 1)
+    const prev = random ? options[Math.floor(rng() * options.length)] : options[0]
     ;[x, y] = prev
     score -= 1
     path.unshift(prev)
     steps.push({ t: 'trace', cell: prev, score })
   }
-  return { visited, path, scores, steps }
+  return { visited, path, scores, steps, pathCount: ways.get(goalKey) }
 }
