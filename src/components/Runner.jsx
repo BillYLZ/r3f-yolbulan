@@ -8,18 +8,22 @@ const BASE = 0
 const UP = new THREE.Vector3(0, 1, 0)
 const axis = new THREE.Vector3()
 
-// A cube that tumbles through the cells in `queue` (a ref'd array of [x, y]), calling onStep on each arrival.
+// A cube that moves through `queue` (a ref'd array), calling onStep on each arrival. Items are cells [x, y],
+// which it tumbles through one quarter turn at a time, or world points { w: [x, z] } along a smoothed curve,
+// which it glides along, turning to face where it is going.
 export default function Runner({ grid, queue, onStep, snap, speed = 3.5, groupRef }) {
   const toWorld = grid.toWorld
   const localGroup = useRef()
   const group = groupRef || localGroup
   const cube = useRef()
   const from = useRef(new THREE.Vector3())
+  const yaw = useRef(0)
 
   useEffect(() => {
     const [wx, wz] = toWorld(snap.cell)
     group.current.position.set(wx, 0, wz)
     from.current.set(wx, 0, wz)
+    yaw.current = 0
   }, [snap, toWorld])
 
   useFrame((_, dt) => {
@@ -28,10 +32,11 @@ export default function Runner({ grid, queue, onStep, snap, speed = 3.5, groupRe
     const target = queue.current[0]
     if (!target) {
       c.position.y = BASE + S / 2
-      c.quaternion.identity()
+      c.quaternion.setFromAxisAngle(UP, yaw.current)
       return
     }
-    const [tx, tz] = toWorld(target)
+    const glide = !Array.isArray(target)
+    const [tx, tz] = glide ? target.w : toWorld(target)
     const dx = tx - g.position.x
     const dz = tz - g.position.z
     const d = Math.hypot(dx, dz)
@@ -45,6 +50,16 @@ export default function Runner({ grid, queue, onStep, snap, speed = 3.5, groupRe
     }
     g.position.x += (dx / d) * step
     g.position.z += (dz / d) * step
+    if (glide) {
+      // slide along the curve, turning smoothly towards the direction of travel
+      const want = Math.atan2(dx, dz)
+      const diff = ((want - yaw.current + Math.PI * 3) % (Math.PI * 2)) - Math.PI
+      yaw.current += diff * Math.min(1, dt * 10)
+      c.position.y = BASE + S / 2
+      c.quaternion.setFromAxisAngle(UP, yaw.current)
+      return
+    }
+    yaw.current = 0
     // Hop and roll a quarter turn per cell; the cube is symmetric, so resetting on arrival is seamless.
     const total = from.current.distanceTo(new THREE.Vector3(tx, 0, tz)) || 1
     const f = 1 - Math.min(d / total, 1)

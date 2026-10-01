@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { BarChart3, ChevronUp, CircleStop, LayoutGrid, Box, BrickWall, Footprints, Hexagon, MoveDiagonal, Square, Triangle, Waves, X, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
+import { BarChart3, ChevronUp, CircleStop, Spline, LayoutGrid, Box, BrickWall, Footprints, Hexagon, MoveDiagonal, Square, Triangle, Waves, X, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
 import { METHODS, key, methodById, pathCost, randomTerrain, randomWalls, supports } from './algorithms/index.js'
 import { ARENAS, GRIDS, makeGrids } from './grids.js'
 import Runner from './components/Runner.jsx'
 import { buildTimeline, viewAt } from './replay.js'
+import { curveLength, smoothPath } from './smooth.js'
 import CameraRig from './components/CameraRig.jsx'
-import { Fence, Floor, Marker, Obstacles, Terrain, Trail } from './components/Arena.jsx'
+import { Fence, Floor, Marker, Obstacles, SmoothLines, Terrain, Trail } from './components/Arena.jsx'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -173,6 +174,7 @@ export default function App() {
   const [view, setView] = useState('persp')
   const [method, setMethod] = useState('astar')
   const [randomPath, setRandomPath] = useState(true)
+  const [smooth, setSmooth] = useState(false) // "Yumuşat": pull the found path tight and follow a spline
   const [arena, setArena] = useState('4') // number of big squares
   const grids = useMemo(() => makeGrids(...ARENAS[arena]), [arena])
   const grid = grids[gridId]
@@ -247,7 +249,9 @@ export default function App() {
     })
     if (!result.path.length) return setPhase('blocked')
     setPath(result.path)
-    queue.current = result.path.slice(1)
+    queue.current = smooth
+      ? smoothPath(grid, walls, terrain, result.path).points.slice(1).map((w) => ({ w }))
+      : result.path.slice(1)
     setPhase(queue.current.length ? 'walk' : 'done')
   }
   const pending = useRef(null)
@@ -407,6 +411,12 @@ export default function App() {
 
   const fogScale = Math.max(grid.width, grid.depth) / 14
 
+  // Smoothing of the found path, shown once the search is over (and live when the switch is flipped).
+  const smoothed = useMemo(
+    () => (smooth && path.length > 2 && phase !== 'search' ? smoothPath(grid, walls, terrain, path) : null),
+    [smooth, path, phase, grid, walls, terrain],
+  )
+
   const status = {
     idle: { text: 'Hazır', variant: 'secondary' },
     search: { text: 'Aranıyor…', variant: 'outline' },
@@ -439,6 +449,7 @@ export default function App() {
             branches={frame?.branches}
           />
           <Obstacles grid={grid} walls={walls} />
+          {smoothed && <SmoothLines grid={grid} anchors={smoothed.anchors} points={smoothed.points} />}
           <Marker grid={grid} cell={start} color={START_COLOR} />
           <Marker grid={grid} cell={goal} color={GOAL_COLOR} pulse />
           <Runner grid={grid} queue={queue} onStep={onStep} snap={snap} speed={speed * 2} groupRef={runnerRef} />
@@ -614,6 +625,24 @@ export default function App() {
                 <span className="ml-auto text-muted-foreground md:hidden">eşit yollardan birini seçer</span>
               </Toggle>
             )}
+            <Toggle
+              variant="outline"
+              size="sm"
+              pressed={smooth}
+              onPressedChange={setSmooth}
+              disabled={busy}
+              aria-label="Yumuşat"
+              title="Bulunan yolu ip gibi gerer ve köşelerinden bir eğri (spline) geçirir; küp eğri üzerinde kayar"
+              className="w-full justify-start text-xs text-muted-foreground data-[state=on]:border-primary/60 data-[state=on]:bg-transparent data-[state=on]:text-foreground"
+            >
+              <Spline className={smooth ? 'text-primary' : ''} />
+              Yumuşat: {smooth ? 'açık' : 'kapalı'}
+              <span className="ml-auto truncate text-muted-foreground">
+                {smoothed
+                  ? `eğri ${curveLength(smoothed.points).toFixed(1)} · zikzak ${curveLength(path.map((c) => grid.toWorld(c))).toFixed(1)}`
+                  : 'yolu eğriye çevirir'}
+              </span>
+            </Toggle>
           </div>
 
           <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 md:grid-cols-2">

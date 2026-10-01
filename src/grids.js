@@ -92,7 +92,17 @@ export function triGrid(cols = 23, rows = SIZE) {
       const y = Math.floor((wz + D / 2) / h)
       const u = Math.floor((wx + W / 2) / (s / 2))
       for (const x of [u - 1, u, u + 1]) if (inBounds([x, y]) && pointInPolygon([wx, wz], polygon([x, y]))) return [x, y]
-      return null
+      // exactly on an edge or corner: take the nearest triangle centre close by
+      let best = null
+      let bestD = h * 0.7
+      for (let yy = y - 1; yy <= y + 1; yy++)
+        for (let x = u - 2; x <= u + 2; x++) {
+          if (!inBounds([x, yy])) continue
+          const [cx, cz] = toWorld([x, yy])
+          const d = Math.hypot(wx - cx, wz - cz)
+          if (d < bestD) [best, bestD] = [[x, yy], d]
+        }
+      return best
     },
     polygon,
     start: [1, rows - 2],

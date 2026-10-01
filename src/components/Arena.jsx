@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Grid } from '@react-three/drei'
+import { Grid, Line } from '@react-three/drei'
 import * as THREE from 'three'
 import { buildWallShell } from '../wallMesh.js'
 
@@ -285,5 +285,19 @@ export function Marker({ grid, cell, color, pulse }) {
         <meshBasicMaterial color={base} />
       </mesh>
     </group>
+  )
+}
+
+// Smoothing overlay: the pulled straight path (dashed white) and the curve the cube follows (light blue).
+export function SmoothLines({ grid, anchors, points }) {
+  const pulled = anchors.map((c) => {
+    const [x, z] = grid.toWorld(c)
+    return [x, 0.07, z]
+  })
+  return (
+    <>
+      <Line points={pulled} color="#ffffff" lineWidth={1.5} dashed dashSize={0.25} gapSize={0.15} transparent opacity={0.75} />
+      <Line points={points.map(([x, z]) => [x, 0.09, z])} color="#7dd3fc" lineWidth={4} />
+    </>
   )
 }

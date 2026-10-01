@@ -56,6 +56,17 @@ Alttaki panel aşamayı ve o anki işlemi gösterir; **Atla** o aşamayı geçer
   <img src="docs/cift-yonlu.png" alt="Çift yönlü dalga" width="48%" />
 </p>
 
+## Yumuşat (spline)
+
+**Yumuşat** anahtarı her yöntemde ve her zeminde çalışır; bulunan yolu bir eğriye çevirir:
+
+1. **İp germe**: yolda aralarında engel olmayan noktalar doğrudan bağlanır, gereksiz köşeler atılır. Küp duvar köşelerine sürtünmesin diye küçük bir pay bırakılır; yolun kaçındığı çamur ve suyun içinden kestirme yapılmaz.
+2. **Catmull-Rom spline**: kalan köşelerden eğri geçirilir. Eğri bir yerde engele değecekse gerilmiş düz yol kullanılır.
+
+Ekranda orijinal zikzak yol kalır; gerilmiş yol beyaz kesik çizgi, eğri açık mavi çizgidir. Küp eğri üzerinde, gittiği yöne dönerek kayar. Anahtarın yanında eğrinin ve zikzak yolun uzunluğu yazar.
+
+<img src="docs/yumusat.png" alt="Yumuşatılmış yol" width="70%" />
+
 ## Arazi ve maliyet
 
 Her adım 1 tutar (çapraz adım √2). **Çamur**a girmek 3, **su**ya girmek 5 katı tutar. A\* ve Dijkstra en ucuz yolu bulur; diğerleri araziyi dikkate almaz. Panelde yolun **adım**, **maliyet** ve **taranan** kare sayısı görünür.
@@ -89,4 +100,5 @@ npm test              # algoritma, zemin ve geometri testleri
 - `src/grids.js`: zeminler. Her zemin komşularını, hücrenin dünyadaki yerini ve dış hattını bilir.
 - `src/algorithms/`: yöntemler. Hepsi `(grid, walls, start, goal, { costs, random }) => { visited, path }`; `index.js` içindeki `METHODS` listesine eklenir. `methods.test.js` her yöntemi desteklediği her zeminde çamur ve su ile çalıştırır; yolun geçerli olduğunu ve "en kısa" iddiasını doğrular.
 - `src/replay.js`: adım kaydeden yöntemlerin aşamalı oynatması.
+- `src/smooth.js`: ip germe ve Catmull-Rom spline (Yumuşat).
 - `src/components/ui/`: shadcn/ui bileşenleri (Tailwind v4).
