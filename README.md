@@ -1,6 +1,6 @@
 # r3f-yolbulan
 
-React Three Fiber + shadcn/ui ile 3B yol bulma (A*) demosu: turuncu küp, yeşil **START** küpünden kırmızı **FINISH** küpüne en kısa yolu bulup yuvarlanarak gider.
+React Three Fiber + shadcn/ui ile 3B yol bulma (A*) demosu: yarı saydam mavi küp, yeşil **START** silindirinden kırmızı **FINISH** silindirine en kısa yolu bulup yuvarlanarak gider.
 
 ## ▶ Demo
 
@@ -16,9 +16,9 @@ React Three Fiber + shadcn/ui ile 3B yol bulma (A*) demosu: turuncu küp, yeşil
 
 - **Engel / Start / Finish**: arenaya dokununca ne yapılacağını seç.
   - Engel: engel koy/kaldır (fareyle sürükleyerek çizebilirsin)
-  - Start: yeşil başlangıç küpünü o kareye taşı
-  - Finish: kırmızı bitiş küpünü o kareye taşı
-- **Yolu Bul**: A* ile Start → Finish yolunu arar, taranan kareleri gösterir, sonra turuncu küp yolu izler. (Boşluk/Enter da çalışır.)
+  - Start: yeşil başlangıç silindirini o kareye taşı
+  - Finish: kırmızı bitiş silindirini o kareye taşı
+- **Yolu Bul**: A* ile Start → Finish yolunu arar, taranan kareleri gösterir, sonra mavi küp yolu izler. (Boşluk/Enter da çalışır.)
 - **Rastgele**: seçili yoğunlukta, her zaman çözülebilir rastgele engeller.
 - **Temizle**: tüm engelleri siler.
 - **Engel yoğunluğu / Hız**: rastgele haritanın doluluğu ve küpün hızı.

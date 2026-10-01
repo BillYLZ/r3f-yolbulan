@@ -4,8 +4,8 @@ import { Edges } from '@react-three/drei'
 import * as THREE from 'three'
 import { toWorld } from '../grid.js'
 
-const S = 0.5 // cube size
-const BASE = 0.2 // sits on top of the start/finish tiles
+const S = 0.6 // cube size
+const BASE = 0
 const UP = new THREE.Vector3(0, 1, 0)
 const axis = new THREE.Vector3()
 
@@ -54,10 +54,10 @@ export default function Runner({ queue, onStep, snap, speed = 3.5 }) {
 
   return (
     <group ref={group}>
-      <mesh ref={cube} castShadow>
+      <mesh ref={cube} renderOrder={2}>
         <boxGeometry args={[S, S, S]} />
-        <meshStandardMaterial color="#ef7d3c" emissive="#ef7d3c" emissiveIntensity={0.35} roughness={0.4} />
-        <Edges color="#ffd2b0" />
+        <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={0.5} transparent opacity={0.45} depthWrite={false} />
+        <Edges color="#bae6fd" />
       </mesh>
     </group>
   )

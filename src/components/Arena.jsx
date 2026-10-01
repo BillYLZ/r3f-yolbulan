@@ -52,10 +52,10 @@ export function Obstacles({ walls }) {
   return [...walls].map((k) => {
     const [wx, wz] = toWorld(k.split(',').map(Number))
     return (
-      <mesh key={k} position={[wx, 0.25, wz]} castShadow receiveShadow>
+      <mesh key={k} position={[wx, 0.25, wz]}>
         <boxGeometry args={[0.94, 0.5, 0.94]} />
-        <meshStandardMaterial color="#17181e" roughness={0.8} />
-        <Edges color={ORANGE} threshold={15} />
+        <meshBasicMaterial color={ORANGE} transparent opacity={0.1} depthWrite={false} />
+        <Edges color={ORANGE} threshold={15} transparent opacity={0.6} />
       </mesh>
     )
   })
@@ -86,18 +86,17 @@ export function Trail({ visited, path }) {
   )
 }
 
-// Colored cube tile marking the start or finish cell.
+// Solid colored cylinder marking the start or finish cell.
 export function Marker({ cell, color, pulse }) {
   const ref = useRef()
   useFrame(({ clock }) => {
-    if (pulse) ref.current.material.emissiveIntensity = 0.5 + Math.sin(clock.elapsedTime * 4) * 0.3
+    if (pulse) ref.current.material.emissiveIntensity = 0.45 + Math.sin(clock.elapsedTime * 4) * 0.25
   })
   const [wx, wz] = toWorld(cell)
   return (
-    <mesh ref={ref} position={[wx, 0.1, wz]} castShadow receiveShadow>
-      <boxGeometry args={[0.9, 0.2, 0.9]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} />
-      <Edges color="#ffffff" />
+    <mesh ref={ref} position={[wx, 0.4, wz]} castShadow receiveShadow>
+      <cylinderGeometry args={[0.36, 0.36, 0.8, 40]} />
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.45} roughness={0.45} />
     </mesh>
   )
 }
