@@ -7,6 +7,11 @@ React Three Fiber + shadcn/ui ile 3B yol bulma (A*) demosu: turuncu küp, yeşil
 - **Hemen dene (Claude Artifact):** https://claude.ai/artifact/PfrVNqNe26cQqgq2Xg3VfY
 - **GitHub Pages:** https://billylz.github.io/r3f-yolbulan/ (Settings → Pages → Source: *GitHub Actions* açıldıktan sonra çalışır)
 
+<p>
+  <img src="docs/desktop.png" alt="Masaüstü görünümü" width="68%" />
+  <img src="docs/mobile.png" alt="Telefon görünümü" width="28%" />
+</p>
+
 ## Kullanım
 
 - **Engel / Start / Finish**: arenaya dokununca ne yapılacağını seç.
