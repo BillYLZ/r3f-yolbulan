@@ -4,6 +4,7 @@ import { Box, BrickWall, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3
 import { METHODS, key, methodById, randomWalls } from './algorithms/index.js'
 import { SIZE, inBounds, toCell } from './grid.js'
 import Runner from './components/Runner.jsx'
+import { buildTimeline, viewAt } from './replay.js'
 import CameraRig from './components/CameraRig.jsx'
 import { Fence, Floor, Marker, Obstacles, Trail } from './components/Arena.jsx'
 import { Button } from '@/components/ui/button'
@@ -37,30 +38,53 @@ function describe(step) {
   return `Geri izleme: (${x},${y}) = ${step.score}`
 }
 
-// Live view of the step-by-step replay: iteration counter, what is happening now, progress, skip.
-function IterationPanel({ replay, pathCount, onSkip }) {
-  const done = replay.n >= replay.total
-  const wave = replay.last ? replay.last.score : 0
+const PHASE_LABELS = ['Sayılar', 'İterasyonlar', 'Yol', 'Git']
+
+// Live view of the phased replay: which phase, what is happening now, progress, skip to the next phase.
+function IterationPanel({ view, tl, walking, summary, onSkip }) {
+  const p = walking || summary ? 3 : view.p
+  const phase = tl.phases[view.p]
+  let title, detail, progress
+  if (summary && !walking) {
+    title = 'Bitti'
+    detail = summary
+    progress = 1
+  } else if (p === 3) {
+    title = 'Bulunan yol gidiliyor'
+    detail = summary
+    progress = 1
+  } else if (p === 0) {
+    title = `${phase.label} · puan ${Math.max(view.i - 1, 0)} / ${tl.maxScore}`
+    detail = `${view.fresh.size} kareye ${Math.max(view.i - 1, 0)} yazıldı`
+    progress = view.i / phase.length
+  } else {
+    title = p === 1 ? `İterasyon ${view.i} / ${phase.length}` : `${phase.label} · ${view.i} / ${phase.length}`
+    detail = describe(view.last)
+    progress = view.i / phase.length
+  }
   return (
-    <div className="pointer-events-auto absolute inset-x-0 bottom-2 mx-auto w-[min(calc(100%-2rem),360px)] rounded-lg border bg-card px-3 py-2 text-xs shadow-sm backdrop-blur md:bottom-4 md:left-88">
+    <div className="pointer-events-auto absolute inset-x-0 bottom-2 mx-auto w-[min(calc(100%-2rem),380px)] rounded-lg border bg-card px-3 py-2 text-xs shadow-sm backdrop-blur md:bottom-4 md:left-88">
+      <div className="mb-2 grid grid-cols-4 gap-1">
+        {PHASE_LABELS.map((label, j) => (
+          <div key={label} className="flex flex-col gap-1">
+            <div className={`h-1 rounded-full ${j < p || (j === p && progress >= 1) ? 'bg-primary' : j === p ? 'bg-primary/40' : 'bg-muted'}`} />
+            <span className={`text-[10px] ${j === p ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {j + 1}. {label}
+            </span>
+          </div>
+        ))}
+      </div>
       <div className="flex items-center justify-between gap-2">
-        <span className="font-medium tabular-nums">
-          İterasyon {replay.n} / {replay.total}
-          <span className="ml-2 text-muted-foreground">puan {wave}</span>
-        </span>
+        <span className="font-medium tabular-nums">{title}</span>
         {onSkip && (
           <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={onSkip}>
             <FastForward /> Atla
           </Button>
         )}
       </div>
-      <div className="mt-1 line-clamp-2 font-mono text-[11px] text-muted-foreground">
-        {done
-          ? `Bitti · ${replay.scores.size} kare puanlandı · ${replay.traced.length ? `yol ${replay.traced.length - 1} adım${pathCount > 1 ? ` · ${pathCount.toLocaleString('tr-TR')} farklı en kısa yol var` : ''}` : 'Finish puan alamadı, yol yok'}`
-          : describe(replay.last)}
-      </div>
+      <div className="mt-1 line-clamp-2 min-h-[1.5em] font-mono text-[11px] text-muted-foreground">{detail}</div>
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
-        <div className="h-full bg-primary transition-[width] duration-75" style={{ width: `${(replay.n / replay.total) * 100}%` }} />
+        <div className="h-full bg-primary" style={{ width: `${Math.min(progress, 1) * 100}%` }} />
       </div>
     </div>
   )
@@ -140,6 +164,7 @@ export default function App() {
     setPhase(queue.current.length ? 'walk' : 'done')
   }
   const pending = useRef(null)
+  const clock = useRef({ p: 0, t0: 0 })
 
   const findPath = () => {
     if (busy) return
@@ -149,16 +174,26 @@ export default function App() {
     pending.current = result
     setPhase('search')
 
-    // Methods that record their iterations are replayed step by step.
+    // Methods that record their iterations are replayed in phases: numbers, iterations, path; then the cube walks.
     if (result.steps) {
-      // Time-based so slow devices skip frames instead of stretching the replay: 40 × Hız iterations per second.
-      const rate = 40 * speed
-      const t0 = performance.now()
-      setPlay({ steps: result.steps, i: 0 })
+      const tl = buildTimeline(result, speed)
+      clock.current = { p: 0, t0: performance.now() }
+      setPlay({ tl, p: 0, i: 0 })
       timer.current = setInterval(() => {
-        const i = Math.min(Math.floor(((performance.now() - t0) / 1000) * rate) + 1, result.steps.length)
-        setPlay({ steps: result.steps, i })
-        if (i >= result.steps.length) finishSearch(result)
+        const c = clock.current
+        while (c.p < tl.phases.length && tl.phases[c.p].length === 0) c.p += 1
+        if (c.p >= tl.phases.length) {
+          setPlay({ tl, p: tl.phases.length, i: 0 })
+          return finishSearch(result)
+        }
+        const ph = tl.phases[c.p]
+        const elapsed = Math.max(performance.now() - c.t0, 0)
+        const i = Math.min(Math.floor((elapsed / 1000) * ph.rate) + 1, ph.length)
+        setPlay({ tl, p: c.p, i })
+        if (i >= ph.length) {
+          c.p += 1
+          c.t0 = performance.now() + 250 // short pause between phases
+        }
       }, 30)
       return
     }
@@ -171,34 +206,20 @@ export default function App() {
     }, 16)
   }
 
-  const skipReplay = () => {
+  // Skip to the next phase of the replay.
+  const skipPhase = () => {
     if (phase !== 'search' || !play) return
-    setPlay({ steps: play.steps, i: play.steps.length })
-    finishSearch(pending.current)
+    clock.current.p += 1
+    clock.current.t0 = performance.now()
   }
 
-  // Derive what the replay shows at its current step.
-  const replay = useMemo(() => {
-    if (!play) return null
-    const scores = new Map()
-    const traced = []
-    const fresh = new Set()
-    const branches = [] // every tried step: [from, to, isFresh]
-    let cursor = null
-    const n = Math.min(play.i, play.steps.length)
-    for (let j = 0; j < n; j++) {
-      const st = play.steps[j]
-      if (st.t === 'assign') {
-        scores.set(key(...st.cell), st.score)
-        if (j >= n - 10) fresh.add(key(...st.cell))
-        if (st.from) branches.push([st.from, st.cell, j >= n - 10])
-      } else {
-        cursor = st.cell
-        if (st.t === 'trace') traced.push(st.cell)
-      }
-    }
-    const last = n ? play.steps[n - 1] : null
-    return { scores, traced, fresh, branches, cursor: n < play.steps.length ? cursor : null, last, n, total: play.steps.length }
+  const frame = useMemo(() => (play ? viewAt(pending.current, play.tl, play.p, play.i) : null), [play])
+  const summary = useMemo(() => {
+    const r = pending.current
+    if (!play || play.p < play.tl.phases.length || !r) return null
+    if (!r.path.length) return `${r.scores.size} kare puanlandı · Finish puan alamadı, yol yok`
+    const count = r.pathCount > 1 ? ` · ${r.pathCount.toLocaleString('tr-TR')} farklı en kısa yol var` : ''
+    return `${r.scores.size} kare puanlandı · yol ${r.path.length - 1} adım${count}`
   }, [play])
 
   const shuffle = () => {
@@ -245,12 +266,12 @@ export default function App() {
           <Floor onPick={pick} />
           <Fence />
           <Trail
-            visited={replay ? new Set(replay.scores.keys()) : visited}
-            path={replay && phase === 'search' ? replay.traced : path}
-            scores={replay?.scores}
-            fresh={replay?.fresh}
-            cursor={replay?.cursor}
-            branches={replay?.branches}
+            visited={frame ? new Set(frame.scores.keys()) : visited}
+            path={frame ? frame.traced : path}
+            scores={frame?.scores}
+            fresh={frame?.fresh}
+            cursor={frame?.cursor}
+            branches={frame?.branches}
           />
           <Obstacles walls={walls} />
           <Marker cell={start} color={START_COLOR} />
@@ -260,7 +281,15 @@ export default function App() {
         <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center md:top-4 md:left-88">
           <Badge variant={status.variant} className="px-3 py-1 text-sm">{status.text}</Badge>
         </div>
-        {replay && <IterationPanel replay={replay} pathCount={pending.current?.pathCount} onSkip={phase === 'search' ? skipReplay : null} />}
+        {frame && (
+          <IterationPanel
+            view={frame}
+            tl={play.tl}
+            walking={phase === 'walk'}
+            summary={summary}
+            onSkip={phase === 'search' ? skipPhase : null}
+          />
+        )}
         <div className="absolute top-3 right-3 flex flex-col items-end gap-2 md:top-4 md:right-4">
           <Button
             size="icon"

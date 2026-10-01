@@ -21,10 +21,13 @@ React Three Fiber + shadcn/ui ile 3B yol bulma demosu: yarı saydam mavi küp, y
 - **Yol bulma yöntemi**: açılır listeden seç.
   - **A\***: Manhattan sezgiseliyle en kısa yolu garanti eder.
   - **yolbulan1995**: her kareye puan verir. Start = 0, 0'ın boş komşularına 1, 1'lerin komşularına 2… Engellere puan verilmez; Finish puan alınca durur. Yol, Finish'ten her adımda bir küçük puana gidilerek bulunur.
-    - Bütün iterasyonlar adım adım, hızlıca oynatılır: işlenen kare mavi çerçeveyle, yeni yazılan puanlar parlak gösterilir.
-    - Denenen her adım mavi bir dal olarak çizilir; 0'dan Finish'e kadar denenen bütün yollar ağaç gibi büyür. Finish'e ulaşan dal turuncu olur.
+    - Çalışma dört aşamada gösterilir:
+      1. **Sayılar**: bütün puanlar dalga dalga yazılır (0, 1, 2 …).
+      2. **İterasyonlar**: her iterasyon **Hız** ayarına göre oynatılır (saniyede 40 × Hız): işlenen kare mavi çerçeveli, denenen her adım mavi bir dal olarak büyür.
+      3. **Yol**: bulunan yol Finish'ten Start'a adım adım turuncu çizilir.
+      4. **Git**: küp yolu yürür.
+    - Alttaki panel hangi aşamada olunduğunu, o anki işlemi ve ilerlemeyi gösterir; **Atla** o aşamayı geçer.
     - **Rastgele yol** (varsayılan açık): aynı uzunlukta birden çok yol varsa her seferinde farklısını bulur. Kareler ve komşular karışık sırayla denenir, geri izlemede uygun komşulardan rastgele biri seçilir. Kapalıyken hep aynı yol bulunur. Bitişte kaç farklı en kısa yol olduğu da yazılır.
-    - Alttaki panel: iterasyon sayacı, o anki işlem, ilerleme çubuğu ve **Atla**. Oynatma hızını **Hız** ayarı belirler (saniyede 40 × Hız iterasyon).
 
     <img src="docs/yolbulan1995.png" alt="yolbulan1995 puanları" width="70%" />
 - **Yolu Bul**: seçili yöntemle Start → Finish yolunu arar, taranan kareleri gösterir, sonra mavi küp yolu izler. (Boşluk/Enter da çalışır.)
