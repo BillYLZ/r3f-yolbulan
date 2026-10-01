@@ -25,9 +25,9 @@ export const METHODS = [
     randomizable: true,
   },
   {
-    id: 'yolbulan1995-tri',
-    name: 'yolbulan1995 △',
-    description: 'Aynı puanlama, üçgen zeminde: her üçgenin 3 komşusu var.',
+    id: 'ucgen',
+    name: 'üçgen',
+    description: 'yolbulan1995 puanlaması, üçgen zeminde: her üçgenin 3 komşusu var.',
     grid: 'tri',
     run: yolbulan1995,
     ready: true,
