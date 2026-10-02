@@ -1,11 +1,10 @@
 # r3f-yolbulan
 
-React Three Fiber + shadcn/ui ile 3B yol bulma laboratuvarı: 9 yöntem, 4 zemin, çamur ve su. Yarı saydam mavi küp, yeşil **START** direğinden kırmızı **FINISH** direğine seçilen yöntemin bulduğu yolu yürür.
+React Three Fiber + shadcn/ui ile 3B yol bulma laboratuvarı: 13 yöntem, 4 zemin, çamur ve su. Yarı saydam mavi küp, yeşil **START** direğinden kırmızı **FINISH** direğine seçilen yöntemin bulduğu yolu yürür.
 
 ## ▶ Demo
 
-- **Hemen dene (Claude Artifact):** https://claude.ai/artifact/PfrVNqNe26cQqgq2Xg3VfY
-- **GitHub Pages:** https://billylz.github.io/r3f-yolbulan/ (Settings → Pages → Source: *GitHub Actions* açıldıktan sonra çalışır)
+**https://billylz.github.io/r3f-yolbulan/**
 
 <p>
   <img src="docs/desktop.png" alt="Masaüstü görünümü" width="68%" />
