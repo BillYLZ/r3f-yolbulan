@@ -9,6 +9,7 @@ const CELL_LINE = '#3b2b24'
 const VIOLET = '#a78bfa'
 const WALL_FILL = '#c2612a'
 const BACKGROUND = '#0b0b10'
+const WAYPOINT = '#c084fc'
 const TERRAIN = { 3: '#b07a45', 5: '#3b82f6' }
 
 // Flat geometries for a cell's outline, cached by shape: tiles, and a frame (ring) for the cursor.
@@ -298,7 +299,7 @@ const segments = (pairs, y) => {
  * Layers for the any-angle methods, revealed as `f` goes from 0 to 1:
  *   tree  (RRT, RRT*) — branches in the order they grew
  *   field (potential) — one arrow per free cell, pointing where the forces push
- *   graph (visibility graph) — corner nodes as dots, lines of sight appearing
+ *   graph (visibility graph) — corner nodes as dots, lines of sight appearing, thin pillars at the route's bends
  *   route — the cube's track; drawn as it grows for the potential field, at the end for the others.
  *   A track that got stuck is drawn red.
  */
@@ -364,6 +365,14 @@ export function AnyAngleLayer({ grid, result, f }) {
           <lineBasicMaterial color="#38bdf8" transparent opacity={0.55} />
         </lineSegments>
       )}
+      {result.graph && result.points && f >= 1 &&
+        result.points.slice(1, -1).map(([x, z], i) => (
+          // the route's turning points, marked like Start and Finish but with thinner pillars
+          <mesh key={i} position={[x, 0.6, z]}>
+            <cylinderGeometry args={[0.035, 0.035, 1.2, 12]} />
+            <meshLambertMaterial color={WAYPOINT} emissive={WAYPOINT} emissiveIntensity={0.5} />
+          </mesh>
+        ))}
       {shown && shown.length > 1 && (
         <Line points={shown.map(([x, z]) => [x, 0.06, z])} color={result.points ? ORANGE : '#f87171'} lineWidth={4} />
       )}

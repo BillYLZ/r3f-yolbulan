@@ -49,7 +49,7 @@ Bu beşi kareden kareye değil, sahada her yöne gider; yolları turuncu bir çi
 | Yöntem | Ne yapar | Ekranda |
 | --- | --- | --- |
 | **Theta\*** | A\* gibi arar, ama bir hücre engelsiz gördüğü uzak bir hücreye doğrudan bağlanır | birkaç düz çizgi; hücre-hücre en kısa yoldan hiçbir zaman uzun değil |
-| **Görünürlük grafiği** (Lozano-Pérez & Wesley, 1979) | En kısa yol yalnızca engel köşelerinde kırılır: Start, Finish ve engellerin dışa bakan köşeleri (biraz dışarı alınmış) düğüm olur, birbirini engelsiz gören düğümler bağlanır, bu grafikte Dijkstra ile en kısa yol seçilir | köşelerde beyaz noktalar, mor görünürlük çizgileri; genelde Theta*'tan da kısa |
+| **Görünürlük grafiği** (Lozano-Pérez & Wesley, 1979) | En kısa yol yalnızca engel köşelerinde kırılır: Start, Finish ve engellerin dışa bakan köşeleri (biraz dışarı alınmış) düğüm olur, birbirini engelsiz gören düğümler bağlanır, bu grafikte Dijkstra ile en kısa yol seçilir | köşelerde beyaz noktalar, mor görünürlük çizgileri, yolun kırıldığı noktalarda ince mor direkler; genelde Theta*'tan da kısa |
 | **Potansiyel alan** | Finish çeker, engeller ve kenarlar iter; küp kuvvetlerin toplamı yönünde kayar. Bir çukura takılırsa birkaç kez rastgele sarsılarak çıkmayı dener | her hücrede kuvvetin yönünü gösteren gri oklar; takılırsa iz kırmızı ve "Çukura takıldı" |
 | **RRT** | Start'tan rastgele noktalara doğru kısa dallar uzatan ağaç; bir dal Finish'i görünce durur | mavi ağaç büyür; yol zikzaklıdır |
 | **RRT\*** | RRT, ama büyümeye devam eder: her yeni dal en ucuz komşuya bağlanır ve komşularını kendi üzerinden yeniden bağlar | ağaç düzenlenir, yol kısalır |
