@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { BarChart3, ChevronUp, CircleStop, Spline, LayoutGrid, Box, BrickWall, Footprints, Hexagon, MoveDiagonal, Square, Triangle, Waves, X, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
+import { BarChart3, Check, ChevronUp, Share2, CircleStop, Spline, LayoutGrid, Box, BrickWall, Footprints, Hexagon, MoveDiagonal, Square, Triangle, Waves, X, Dices, FastForward, Cpu, Crosshair, Eraser, Flag, Grid3x3, Hand, MapPin, Play, Rotate3d, Route, Shuffle } from 'lucide-react'
 import { METHODS, key, methodById, pathCost, randomTerrain, randomWalls, supports } from './algorithms/index.js'
 import { ARENAS, GRIDS, makeGrids } from './grids.js'
+import { decodeMap, encodeMap } from './mapcode.js'
 import Runner from './components/Runner.jsx'
 import { buildTimeline, viewAt } from './replay.js'
 import { curveLength, smoothPath, smoothPoints } from './smooth.js'
@@ -355,6 +356,45 @@ export default function App() {
     if (!supports(methodById(method), id)) setMethod('astar')
   }
 
+  // Map links: the arena in the address after "#", e.g. #kare:1010012L00010001L… (see mapcode.js).
+  const applyMap = (m) => {
+    clearInterval(timer.current)
+    clearTrail()
+    setCompare(null)
+    setArena(m.arena)
+    setGridId(m.gridId)
+    setWalls(m.walls)
+    setTerrain(m.terrain)
+    setStart(m.start)
+    setGoal(m.goal)
+    placeRunner(m.start)
+    if (!supports(methodById(method), m.gridId)) setMethod('astar')
+  }
+  useEffect(() => {
+    const load = () => {
+      const m = decodeMap(window.location.hash)
+      if (m) applyMap(m)
+    }
+    load()
+    window.addEventListener('hashchange', load)
+    return () => window.removeEventListener('hashchange', load)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const [shared, setShared] = useState(false)
+  const shareMap = async () => {
+    const code = encodeMap(gridId, grid, walls, terrain, start, goal)
+    const url = `${window.location.origin}${window.location.pathname}#${code}`
+    window.history.replaceState(null, '', `#${code}`)
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      window.prompt?.('Harita linki', url)
+    }
+    setShared(true)
+    setTimeout(() => setShared(false), 2000)
+  }
+
   const changeArena = (n) => {
     if (!n || busy) return
     setArena(n)
@@ -662,7 +702,7 @@ export default function App() {
             </Toggle>
           </div>
 
-          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 md:grid-cols-2">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 md:grid-cols-2">
             {busy ? (
               <Button size="lg" variant="destructive" onClick={stop} className="md:col-span-2">
                 <CircleStop /> Durdur
@@ -678,8 +718,18 @@ export default function App() {
             <Button size="lg" variant="outline" onClick={clearWalls} disabled={busy} aria-label="Temizle">
               <Eraser /> <span className="hidden md:inline">Temizle</span>
             </Button>
-            <Button size="lg" variant="outline" onClick={runCompare} disabled={busy} aria-label="Yöntemleri karşılaştır" className="md:col-span-2">
-              <BarChart3 /> <span className="hidden md:inline">Yöntemleri karşılaştır</span>
+            <Button size="lg" variant="outline" onClick={runCompare} disabled={busy} aria-label="Yöntemleri karşılaştır">
+              <BarChart3 /> <span className="hidden md:inline">Karşılaştır</span>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={shareMap}
+              aria-label="Haritanın linkini kopyala"
+              title="Bu haritanın linkini kopyalar: 0 boş, 1 engel, 2 su, 3 çamur, S start, F finish, L yeni satır"
+            >
+              {shared ? <Check className="text-primary" /> : <Share2 />}
+              <span className="hidden md:inline">{shared ? 'Kopyalandı' : 'Paylaş'}</span>
             </Button>
           </div>
 

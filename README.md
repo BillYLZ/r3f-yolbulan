@@ -11,6 +11,19 @@ React Three Fiber + shadcn/ui ile 3B yol bulma laboratuvarı: 14 yöntem, 4 zemi
   <img src="docs/mobile.png" alt="Telefon görünümü" width="28%" />
 </p>
 
+### Harita linki
+
+Bir haritayı link olarak paylaşabilirsin: **Paylaş** butonu o anki haritanın linkini kopyalar. Link elle de yazılabilir; harita adresin `#` işaretinden sonrasına yazılır:
+
+```
+https://billylz.github.io/r3f-yolbulan/#kare:S010012L00010001L100100203F
+```
+
+- Her karakter bir hücre: **0** boş, **1** engel, **2** su, **3** çamur, **S** Start, **F** Finish (S ve F yazılmazsa varsayılan köşeler kullanılır).
+- **L** yeni satır; satırlar Üstten görünümde yukarıdan aşağıya.
+- Baştaki zemin adı isteğe bağlı: `kare:` (varsayılan), `capraz:`, `ucgen:`, `altigen:`.
+- Saha büyüklüğü koddan anlaşılır: ilk satırın uzunluğu ve satır sayısı kodu alan en küçük saha (4–16 büyük kare) seçilir. Yazılmayan hücreler boştur.
+
 ## Zeminler
 
 | Zemin | Komşu | Not |
@@ -121,4 +134,5 @@ npm test              # algoritma, zemin ve geometri testleri
 - `src/algorithms/`: yöntemler. Hepsi `(grid, walls, start, goal, { costs, random }) => { visited, path }`; `index.js` içindeki `METHODS` listesine eklenir. `methods.test.js` her yöntemi desteklediği her zeminde çamur ve su ile çalıştırır; yolun geçerli olduğunu ve "en kısa" iddiasını doğrular.
 - `src/replay.js`: adım kaydeden yöntemlerin aşamalı oynatması.
 - `src/smooth.js`: ip germe ve Catmull-Rom spline (Yumuşat).
+- `src/mapcode.js`: harita linki (kodlama ve okuma).
 - `src/components/ui/`: shadcn/ui bileşenleri (Tailwind v4).
