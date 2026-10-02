@@ -298,6 +298,7 @@ const segments = (pairs, y) => {
  * Layers for the any-angle methods, revealed as `f` goes from 0 to 1:
  *   tree  (RRT, RRT*) — branches in the order they grew
  *   field (potential) — one arrow per free cell, pointing where the forces push
+ *   graph (visibility graph) — corner nodes as dots, lines of sight appearing
  *   route — the cube's track; drawn as it grows for the potential field, at the end for the others.
  *   A track that got stuck is drawn red.
  */
@@ -322,6 +323,19 @@ export function AnyAngleLayer({ grid, result, f }) {
     }
     return segments(pairs, 0.02)
   }, [result, grid])
+  const graphGeo = useMemo(() => {
+    if (!result.graph) return null
+    const n = Math.ceil(result.graph.edges.length * f)
+    return segments(result.graph.edges.slice(0, n), 0.03)
+  }, [result, f])
+  const nodeGeo = useMemo(() => {
+    if (!result.graph) return null
+    const pts = new Float32Array(result.graph.nodes.length * 3)
+    result.graph.nodes.forEach(([x, z], i) => pts.set([x, 0.08, z], i * 3))
+    return new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(pts, 3))
+  }, [result])
+  useEffect(() => () => graphGeo?.dispose(), [graphGeo])
+  useEffect(() => () => nodeGeo?.dispose(), [nodeGeo])
   useEffect(() => () => treeGeo?.dispose(), [treeGeo])
   useEffect(() => () => fieldGeo?.dispose(), [fieldGeo])
 
@@ -334,6 +348,16 @@ export function AnyAngleLayer({ grid, result, f }) {
         <lineSegments geometry={fieldGeo}>
           <lineBasicMaterial color="#94a3b8" transparent opacity={0.5} />
         </lineSegments>
+      )}
+      {graphGeo && (
+        <lineSegments geometry={graphGeo}>
+          <lineBasicMaterial color="#a78bfa" transparent opacity={0.35} />
+        </lineSegments>
+      )}
+      {nodeGeo && (
+        <points geometry={nodeGeo}>
+          <pointsMaterial color="#e9d5ff" size={0.16 * grid.cellSize} sizeAttenuation />
+        </points>
       )}
       {treeGeo && (
         <lineSegments geometry={treeGeo}>

@@ -20,6 +20,25 @@ export const wallBlocked = (grid, walls) => (p) => {
   return !c || walls.has(key(...c))
 }
 
+/**
+ * Same as wallBlocked, but answered from a bitmap of the arena built once (res world units per pixel).
+ * Much faster when a method checks thousands of lines of sight.
+ */
+export function rasterBlocked(grid, walls, res = 0.04) {
+  const [hw, hd] = [grid.width / 2, grid.depth / 2]
+  const nx = Math.ceil(grid.width / res) + 1
+  const nz = Math.ceil(grid.depth / res) + 1
+  const bits = new Uint8Array(nx * nz)
+  const slow = wallBlocked(grid, walls)
+  for (let i = 0; i < nx; i++)
+    for (let j = 0; j < nz; j++) bits[i * nz + j] = slow([-hw + i * res, -hd + j * res]) ? 1 : 0
+  return ([x, z]) => {
+    const i = Math.round((x + hw) / res)
+    const j = Math.round((z + hd) / res)
+    return i < 0 || j < 0 || i >= nx || j >= nz || bits[i * nz + j] === 1
+  }
+}
+
 // True when a band of the given half-width around segment a→b avoids every blocked point.
 export function segmentClear(blocked, a, b, radius = 0) {
   const len = dist(a, b)

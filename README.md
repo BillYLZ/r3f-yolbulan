@@ -1,6 +1,6 @@
 # r3f-yolbulan
 
-React Three Fiber + shadcn/ui ile 3B yol bulma laboratuvarı: 13 yöntem, 4 zemin, çamur ve su. Yarı saydam mavi küp, yeşil **START** direğinden kırmızı **FINISH** direğine seçilen yöntemin bulduğu yolu yürür.
+React Three Fiber + shadcn/ui ile 3B yol bulma laboratuvarı: 14 yöntem, 4 zemin, çamur ve su. Yarı saydam mavi küp, yeşil **START** direğinden kırmızı **FINISH** direğine seçilen yöntemin bulduğu yolu yürür.
 
 ## ▶ Demo
 
@@ -44,11 +44,12 @@ Zemindeki turuncu çizgiler sahayı **büyük karelere** böler (her biri 7 × 7
 
 ### Her açıya giden yöntemler
 
-Bu dördü kareden kareye değil, sahada her yöne gider; yolları turuncu bir çizgidir ve küp üzerinde kayar. Maliyetleri yolun uzunluğudur (bir adım = iki komşu hücre merkezi arası); çamur ve suyu dikkate almazlar.
+Bu beşi kareden kareye değil, sahada her yöne gider; yolları turuncu bir çizgidir ve küp üzerinde kayar. Maliyetleri yolun uzunluğudur (bir adım = iki komşu hücre merkezi arası); çamur ve suyu dikkate almazlar.
 
 | Yöntem | Ne yapar | Ekranda |
 | --- | --- | --- |
 | **Theta\*** | A\* gibi arar, ama bir hücre engelsiz gördüğü uzak bir hücreye doğrudan bağlanır | birkaç düz çizgi; hücre-hücre en kısa yoldan hiçbir zaman uzun değil |
+| **Görünürlük grafiği** (Lozano-Pérez & Wesley, 1979) | En kısa yol yalnızca engel köşelerinde kırılır: Start, Finish ve engellerin dışa bakan köşeleri (biraz dışarı alınmış) düğüm olur, birbirini engelsiz gören düğümler bağlanır, bu grafikte Dijkstra ile en kısa yol seçilir | köşelerde beyaz noktalar, mor görünürlük çizgileri; genelde Theta*'tan da kısa |
 | **Potansiyel alan** | Finish çeker, engeller ve kenarlar iter; küp kuvvetlerin toplamı yönünde kayar. Bir çukura takılırsa birkaç kez rastgele sarsılarak çıkmayı dener | her hücrede kuvvetin yönünü gösteren gri oklar; takılırsa iz kırmızı ve "Çukura takıldı" |
 | **RRT** | Start'tan rastgele noktalara doğru kısa dallar uzatan ağaç; bir dal Finish'i görünce durur | mavi ağaç büyür; yol zikzaklıdır |
 | **RRT\*** | RRT, ama büyümeye devam eder: her yeni dal en ucuz komşuya bağlanır ve komşularını kendi üzerinden yeniden bağlar | ağaç düzenlenir, yol kısalır |
@@ -59,6 +60,8 @@ Bu dördü kareden kareye değil, sahada her yöne gider; yolları turuncu bir �
   <img src="docs/rrt.png" alt="RRT* ağacı" width="48%" />
   <img src="docs/potansiyel.png" alt="Potansiyel alan" width="48%" />
 </p>
+
+<img src="docs/gorunurluk.png" alt="Görünürlük grafiği" width="70%" />
 
 **yolbulan1995** ve **Çift yönlü dalga** dört aşamada oynatılır:
 1. **Sayılar**: bütün puanlar dalga dalga yazılır (çift yönlüde Start tarafı turuncu, Finish tarafı mor).

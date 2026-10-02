@@ -1,5 +1,5 @@
 import { key } from '../grids.js'
-import { cellsAlong, curveLength, dist, segmentClear, stepLength, wallBlocked } from '../geom.js'
+import { cellsAlong, curveLength, dist, rasterBlocked, segmentClear, stepLength, wallBlocked } from '../geom.js'
 
 // Methods that move in any direction, not just cell to cell. Besides { visited, path } (cells, for the counters)
 // they return `points`: the route as world points [x, z], and `cost`: its length in steps of the grid.
@@ -259,3 +259,80 @@ export function rrt(grid, walls, start, goal, { rng = Math.random, star = false 
 }
 
 export const rrtStar = (grid, walls, start, goal, opts = {}) => rrt(grid, walls, start, goal, { ...opts, star: true })
+
+/**
+ * Visibility Graph (Lozano-Pérez & Wesley, 1979). The shortest way around obstacles bends only at their corners,
+ * so the graph's nodes are Start, Finish and every outward-facing wall corner (moved a little out of the wall so
+ * the cube does not scrape it). Two nodes are linked when they can see each other in a clear straight line.
+ * Dijkstra on this graph gives the route. `graph` = { nodes: [[x, z]…], edges: [[a, b]…] } for drawing.
+ */
+export function visibilityGraph(grid, walls, start, goal) {
+  const blocked = rasterBlocked(grid, walls)
+  const cs = grid.cellSize
+  const vk = ([x, z]) => `${x.toFixed(4)},${z.toFixed(4)}`
+
+  // For every polygon corner: how many cells meet there, and which of them are walls.
+  const corners = new Map()
+  for (let x = 0; x < grid.cols; x++)
+    for (let y = 0; y < grid.rows; y++) {
+      const isWall = walls.has(key(x, y))
+      const centre = grid.toWorld([x, y])
+      for (const v of grid.polygon([x, y])) {
+        const c = corners.get(vk(v)) ?? { p: v, total: 0, walls: [] }
+        c.total += 1
+        if (isWall) c.walls.push(centre)
+        corners.set(vk(v), c)
+      }
+    }
+
+  const nodes = [grid.toWorld(start), grid.toWorld(goal)]
+  for (const { p, total, walls: ws } of corners.values()) {
+    // a corner that sticks out: walls fill less than half of the cells around it
+    if (!ws.length || ws.length * 2 >= total) continue
+    let dx = 0
+    let dz = 0
+    for (const [wx, wz] of ws) {
+      const d = Math.hypot(p[0] - wx, p[1] - wz) || 1
+      dx += (p[0] - wx) / d
+      dz += (p[1] - wz) / d
+    }
+    const m = Math.hypot(dx, dz) || 1
+    const q = [p[0] + (dx / m) * 0.32 * cs, p[1] + (dz / m) * 0.32 * cs]
+    if (!blocked(q) && segmentClear(blocked, q, q, 0.12 * cs)) nodes.push(q)
+  }
+
+  const n = nodes.length
+  const adj = Array.from({ length: n }, () => [])
+  const edges = []
+  for (let i = 0; i < n; i++)
+    for (let j = i + 1; j < n; j++) {
+      if (!segmentClear(blocked, nodes[i], nodes[j], 0.12 * cs)) continue
+      const d = dist(nodes[i], nodes[j])
+      adj[i].push([j, d])
+      adj[j].push([i, d])
+      edges.push([nodes[i], nodes[j]])
+    }
+
+  // Dijkstra from Start (0) to Finish (1)
+  const best = new Array(n).fill(Infinity)
+  const prev = new Array(n).fill(-1)
+  const done = new Array(n).fill(false)
+  best[0] = 0
+  for (;;) {
+    let u = -1
+    for (let i = 0; i < n; i++) if (!done[i] && best[i] < Infinity && (u < 0 || best[i] < best[u])) u = i
+    if (u < 0 || u === 1) break
+    done[u] = true
+    for (const [v, d] of adj[u])
+      if (best[u] + d < best[v]) {
+        best[v] = best[u] + d
+        prev[v] = u
+      }
+  }
+  const graph = { nodes, edges }
+  const visited = nodes.map((p) => grid.toCell(...p)).filter(Boolean)
+  if (best[1] === Infinity) return { visited, path: [], points: null, graph }
+  const points = []
+  for (let i = 1; i >= 0; i = prev[i]) points.unshift(nodes[i])
+  return finish(grid, visited, points, { graph })
+}

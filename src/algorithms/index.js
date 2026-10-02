@@ -4,7 +4,7 @@ import { bidirectional } from './bidirectional.js'
 import { dfs } from './dfs.js'
 import { jps } from './jps.js'
 import { randomWalk, wallFollower } from './walkers.js'
-import { potentialField, rrt, rrtStar, thetaStar } from './anyangle.js'
+import { potentialField, rrt, rrtStar, thetaStar, visibilityGraph } from './anyangle.js'
 
 export { key, randomTerrain, randomWalls } from './astar.js'
 export { pathCost } from './cost.js'
@@ -72,6 +72,15 @@ export const METHODS = [
     run: thetaStar,
     shortest: false,
     alwaysFinds: true,
+    anyAngle: true,
+  },
+  {
+    id: 'visibility',
+    name: 'Görünürlük grafiği',
+    description: 'Engel köşelerini birbirini gören çizgilerle bağlar, en kısasını seçer (1979).',
+    run: visibilityGraph,
+    shortest: false,
+    alwaysFinds: false,
     anyAngle: true,
   },
   {

@@ -115,3 +115,28 @@ test('potential field has to shake itself out of a pocket facing Finish', () => 
   assert.ok(r.field.length > 0)
   assert.ok(r.escapes > 0, 'had to shake itself free at least once')
 })
+
+test('visibility graph: never longer than Theta*, and it bends only at wall corners', () => {
+  const vg = METHODS.find((m) => m.id === 'visibility')
+  const theta = METHODS.find((m) => m.id === 'theta')
+  for (const grid of Object.values(GRIDS))
+    for (let i = 0; i < 8; i++) {
+      const walls = randomWalls(grid, grid.start, grid.goal, 0.25)
+      const r = vg.run(grid, walls, grid.start, grid.goal)
+      if (!r.points) continue
+      assert.ok(r.cost <= theta.run(grid, walls, grid.start, grid.goal).cost * 1.02, grid.label)
+      // every bend is one of the graph's corner nodes, close to a wall
+      for (const p of r.points.slice(1, -1)) {
+        assert.ok(r.graph.nodes.some((q) => q[0] === p[0] && q[1] === p[1]))
+        const near = [...walls].some((k) => curveLength([p, grid.toWorld(k.split(',').map(Number))]) < 1.2 * grid.cellSize + 0.5)
+        assert.ok(near, 'bend far from any wall')
+      }
+    }
+})
+
+test('visibility graph on an open floor is one straight line', () => {
+  for (const grid of Object.values(GRIDS)) {
+    const r = METHODS.find((m) => m.id === 'visibility').run(grid, new Set(), grid.start, grid.goal)
+    assert.equal(r.points.length, 2, grid.label)
+  }
+})

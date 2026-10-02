@@ -244,7 +244,7 @@ export default function App() {
 
   const finishSearch = (result) => {
     clearInterval(timer.current)
-    if (result.tree || result.field || result.points) setGrow({ result, f: 1 })
+    if (result.tree || result.field || result.graph || result.points) setGrow({ result, f: 1 })
     setStats({
       steps: result.path.length ? result.path.length - 1 : null,
       cost: result.path.length ? (result.cost ?? pathCost(grid, result.path, terrain)) : null,
@@ -300,9 +300,9 @@ export default function App() {
       return
     }
 
-    // Other methods: reveal the search in about two seconds — scanned cells, or for RRT the growing tree and for
-    // the potential field the cube's track (those two draw lines instead of cell tiles).
-    const lines = result.tree || result.field
+    // Other methods: reveal the search in about two seconds — scanned cells, or for RRT the growing tree, for the
+    // visibility graph its lines of sight and for the potential field the cube's track (lines instead of tiles).
+    const lines = result.tree || result.field || result.graph
     const ticks = 120
     let t = 0
     timer.current = setInterval(() => {
