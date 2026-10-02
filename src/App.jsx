@@ -386,6 +386,15 @@ export default function App() {
     const code = encodeMap(gridId, grid, walls, terrain, start, goal)
     const url = `${window.location.origin}${window.location.pathname}#${code}`
     window.history.replaceState(null, '', `#${code}`)
+    // phones: the system share sheet (WhatsApp, messages…); elsewhere: copy the link
+    if (navigator.share && window.matchMedia('(pointer: coarse)').matches) {
+      try {
+        await navigator.share({ title: 'Yol Bulan haritası', url })
+        return
+      } catch (e) {
+        if (e?.name === 'AbortError') return
+      }
+    }
     try {
       await navigator.clipboard.writeText(url)
     } catch {
@@ -725,8 +734,8 @@ export default function App() {
               size="lg"
               variant="outline"
               onClick={shareMap}
-              aria-label="Haritanın linkini kopyala"
-              title="Bu haritanın linkini kopyalar: 0 boş, 1 engel, 2 su, 3 çamur, S start, F finish, L yeni satır"
+              aria-label="Haritayı paylaş"
+              title="Bu haritanın linkini paylaşır (telefonda paylaşım menüsü, bilgisayarda panoya kopyalar): 0 boş, 1 engel, 2 su, 3 çamur, S start, F finish, L yeni satır"
             >
               {shared ? <Check className="text-primary" /> : <Share2 />}
               <span className="hidden md:inline">{shared ? 'Kopyalandı' : 'Paylaş'}</span>

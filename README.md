@@ -13,7 +13,7 @@ React Three Fiber + shadcn/ui ile 3B yol bulma laboratuvarı: 14 yöntem, 4 zemi
 
 ### Harita linki
 
-Bir haritayı link olarak paylaşabilirsin: **Paylaş** butonu o anki haritanın linkini kopyalar. Link elle de yazılabilir; harita adresin `#` işaretinden sonrasına yazılır:
+Bir haritayı link olarak paylaşabilirsin: **Paylaş** butonu telefonda paylaşım menüsünü (WhatsApp, mesaj…) açar, bilgisayarda o anki haritanın linkini panoya kopyalar. Link elle de yazılabilir; harita adresin `#` işaretinden sonrasına yazılır:
 
 ```
 https://billylz.github.io/r3f-yolbulan/#kare:S010012L00010001L100100203F
