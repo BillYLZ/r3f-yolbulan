@@ -163,23 +163,30 @@ export function Obstacles({ grid, walls }) {
 function Branches({ grid, branches, path }) {
   const onPath = new Set()
   for (let i = 1; i < path.length; i++) onPath.add(`${path[i - 1]}|${path[i]}`).add(`${path[i]}|${path[i - 1]}`)
-  return branches.map(([a, b, isFresh, side]) => {
+  const bar = (a, b, k, width, y, color, opacity) => {
     const [ax, az] = grid.toWorld(a)
     const [bx, bz] = grid.toWorld(b)
-    const win = onPath.has(`${a}|${b}`)
     const len = Math.hypot(bx - ax, bz - az)
     const angle = Math.atan2(-(bz - az), bx - ax)
     return (
-      <mesh
-        key={`${a}|${b}`}
-        position={[(ax + bx) / 2, win ? 0.017 : 0.014, (az + bz) / 2]}
-        rotation={[-Math.PI / 2, 0, angle]}
-      >
-        <planeGeometry args={[len, win ? 0.16 : 0.06]} />
-        <meshBasicMaterial color={win ? ORANGE : side === 'b' ? '#c084fc' : '#38bdf8'} transparent opacity={win ? 1 : isFresh ? 0.95 : 0.45} depthWrite={false} />
+      <mesh key={k} position={[(ax + bx) / 2, y, (az + bz) / 2]} rotation={[-Math.PI / 2, 0, angle]}>
+        <planeGeometry args={[len, width]} />
+        <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} />
       </mesh>
     )
-  })
+  }
+  return (
+    <>
+      {branches
+        .filter(([a, b]) => !onPath.has(`${a}|${b}`))
+        .map(([a, b, isFresh, side]) =>
+          bar(a, b, `${a}|${b}`, 0.06, 0.014, side === 'b' ? '#c084fc' : '#38bdf8', isFresh ? 0.95 : 0.45),
+        )}
+      {/* The found path is drawn step by step on its own: walking back it may step to any lower-scored neighbour,
+          not only the one that handed out the score, so it does not always run along a tried branch. */}
+      {path.slice(1).map((c, i) => bar(path[i], c, `p${i}`, 0.16, 0.017, ORANGE, 1))}
+    </>
+  )
 }
 
 // Bright frame on the cell the algorithm is working on right now.
