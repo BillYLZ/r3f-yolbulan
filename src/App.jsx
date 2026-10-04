@@ -437,7 +437,7 @@ export default function App() {
       const found = r.path.length > 0
       return {
         id: m.id,
-        name: m.name,
+        name: `${METHODS.indexOf(m) + 1}. ${m.name}`,
         found,
         steps: found ? r.path.length - 1 : null,
         cost: found ? (r.cost ?? pathCost(grid, r.path, terrain)) : null,
@@ -663,14 +663,14 @@ export default function App() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {METHODS.map((m) => (
+                {METHODS.map((m, i) => (
                   <SelectItem
                     key={m.id}
                     value={m.id}
                     disabled={!supports(m, gridId)}
                     hint={supports(m, gridId) ? m.description : `Sadece ${m.grids.map((g) => GRIDS[g].label).join(', ')} zeminde`}
                   >
-                    {m.name}
+                    {`${i + 1}. ${m.name}`}
                   </SelectItem>
                 ))}
               </SelectContent>
